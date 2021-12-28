@@ -1,4 +1,4 @@
-#React Technology Revealed
+# React Technology Revealed
 
 React from idea to source code, [start reading](https://react.iamkasong.com/)
 
