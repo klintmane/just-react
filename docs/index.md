@@ -1,144 +1,144 @@
-本书的宗旨是打造一本严谨、易懂的`React`源码分析教程。
+The purpose of this book is to create a rigorous and easy-to-understand `React` source code analysis tutorial.
 
-为了达到这个目标，在行文上，本书会遵循：
+In order to achieve this goal, in terms of writing, this book will follow:
 
-1. 不预设观点 —— 所有观点来自`React`核心团队成员在公开场合的分享。
+1. Unpredictable opinions-all opinions are shared by members of the core team of `React` in public.
 
-2. 丰富的参考资料 —— 包括在线Demo、文章、视频。
+2. Rich reference materials-including online demos, articles, and videos.
 
-3. 保持更新 —— 在`React`版本更新后会及时补充。当前版本`v17.0.0-alpha`。
+3. Keep up-to-date-will be added in time after the `React` version is updated. The current version is `v17.0.0-alpha`.
 
-## 导学视频
+## Tutorial video
 
-每位同学的基础、学习目的、可支配的学习时间都不同，对于“学习源码”这种需要长期投入的事情，需要慎重考虑投入产出比。
+Each student's foundation, learning purpose, and disposable learning time are different. For things like "learning source code" that require long-term investment, you need to carefully consider the input-output ratio.
 
-为此，我在B站录了一期[导学视频](https://www.bilibili.com/video/BV1Ki4y1u7Vr)。
+To this end, I recorded a [Guide Video](https://www.bilibili.com/video/BV1Ki4y1u7Vr) at station B.
 
-在视频的前半部分，我将“学习源码”划分为5个层次，阐述了：
+In the first half of the video, I divided the "learning source code" into 5 levels and explained:
 
-- 达到每个层次需要掌握哪些知识
+-What knowledge needs to be mastered to reach each level
 
-- 怎样最快的掌握这些知识
+-How to master this knowledge the fastest
 
-- 达到这一层次后会收获什么
+-What will you gain after reaching this level
 
-在学习本书前，你可以结合自身情况做出取舍，有的放矢。
+Before studying this book, you can make trade-offs based on your own situation, with a target.
 
-在视频的后半部分，我会以一个`Demo`演示`React`源码的运行流程，为你学习本书内容打下基础。
+In the second half of the video, I will use a `Demo` to demonstrate the running process of the `React` source code to lay a foundation for you to learn the contents of this book.
 
-::: warning 视频课程
-文字包含的信息量有限，追求效率的同学可以考虑[视频课程](https://ke.segmentfault.com/course/1650000023864436)，由我带着你一起debug源码。
+::: warning video course
+The amount of information contained in the text is limited, students who are pursuing efficiency can consider [video course](https://ke.segmentfault.com/course/1650000023864436), let me take you with you to debug the source code.
 :::
 
-## 章节说明
+## Chapter description
 
-我们并没有从如`ReactDOM.render`、`this.setState`或`Hooks`等这些日常开发耳熟能详的`API`入手，而是从**理念**这样比较高的抽象层次开始学习，这是有意为之的。
+We did not start with the familiar APIs such as `ReactDOM.render`, `this.setState` or `Hooks`, etc., but started from a relatively high level of abstraction such as **idea**. This is Deliberately.
 
-从理念到架构，从架构到实现，从实现到具体代码。
+From concept to architecture, from architecture to implementation, from implementation to specific code.
 
-这是一个自顶向下、抽象程度递减，符合认知的过程。如果直接讲解API，那么很容易陷入源码的汪洋大海。
+This is a process of top-down, diminishing abstraction, in line with cognition. If you directly explain the API, it is easy to fall into the ocean of source code.
 
-基于此，本书划分为`理念篇`、`架构篇`、`实现篇`。
+Based on this, the book is divided into `ideas`, `architecture`, and `implementation`.
 
-## 章节列表
+## Chapter list
 
-### 理念篇
+### Idea
 
-#### 第一章 React理念
+#### Chapter 1 React Concept
 
-✅ React理念
+✅ React concept
 
-✅ 老的React架构
+✅ Old React architecture
 
-✅ 新的React架构
+✅ New React architecture
 
-✅ Fiber架构的心智模型
+✅ The mental model of Fiber architecture
 
-✅ Fiber架构的实现原理
+✅ The realization principle of Fiber architecture
 
-✅ Fiber架构的工作原理
+✅ How the Fiber architecture works
 
-✅ 总结
+✅ Summary
 
-#### 第二章 前置知识
+#### Chapter 2 Pre-Knowledge
 
-✅ 源码的文件结构
+✅ The file structure of the source code
 
-✅ 调试源码
+✅ Debug source code
 
-✅ 深入理解JSX
+✅ Deep understanding of JSX
 
-### 架构篇
+### Architecture
 
-#### 第三章 render阶段
+#### Chapter 3 Render Phase
 
-✅ 流程概览
+✅ Process overview
 
 ✅ beginWork
 
 ✅ completeWork
 
-#### 第四章 commit阶段
+#### Chapter 4 commit stage
 
-✅ 流程概览
+✅ Process overview
 
-✅ before mutation阶段
+✅ Before mutation stage
 
-✅ mutation阶段
+✅ Mutation stage
 
-✅ layout阶段
+✅ Layout stage
 
-### 实现篇
+### Implementation
 
-#### 第五章 Diff算法
+#### Chapter 5 Diff Algorithm
 
-✅ 概览
+✅ Overview
 
-✅ 单节点Diff
+✅ Single node Diff
 
-✅ 多节点Diff
+✅ Multi-node Diff
 
-#### 第六章 状态更新
+#### Chapter 6 Status Update
 
-✅ 流程概览
+✅ Process overview
 
-✅ 心智模型
+✅ Mental model
 
 ✅ Update
 
-✅ 深入理解优先级
+✅ In-depth understanding of priorities
 
 ✅ ReactDOM.render
 
 ✅ this.setState
 
-#### 第七章 Hooks
+#### Chapter 7 Hooks
 
-✅ Hooks理念
+✅ Hooks concept
 
-✅ 极简Hooks实现
+✅ Minimalist Hooks implementation
 
-✅ Hooks数据结构
+✅ Hooks data structure
 
-✅ useState与useReducer
+✅ useState and useReducer
 
 ✅ useEffect
 
 ✅ useRef
 
-✅ useMemo与useCallback
+✅ useMemo and useCallback
 
-#### 第八章 Concurrent Mode
+#### Chapter 8 Concurrent Mode
 
-✅ 概览
+✅ Overview
 
-✅ Scheduler的原理与实现
+✅ Principle and implementation of Scheduler
 
-✅ lane模型
+✅ lane model
 
-📝 异步可中断更新
+📝 Asynchronous interruptible update
 
-📝 高优任务打断机制
+📝 High-quality task interruption mechanism
 
 📝 batchedUpdates
 

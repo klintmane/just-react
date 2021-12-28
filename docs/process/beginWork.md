@@ -1,13 +1,13 @@
-上一节我们了解到`render阶段`的工作可以分为“递”阶段和“归”阶段。其中“递”阶段会执行`beginWork`，“归”阶段会执行`completeWork`。这一节我们看看“递”阶段的`beginWork`方法究竟做了什么。
+In the previous section, we learned that the work of the `render phase` can be divided into a "pass" phase and a "return" phase. Among them, the "pass" phase will execute `beginWork`, and the "return" phase will execute `completeWork`. In this section, let's take a look at what the `beginWork` method does in the "pass" phase.
 
 
-## 方法概览
+## Method overview
 
-可以从[源码这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L3075)看到`beginWork`的定义。整个方法大概有500行代码。
+You can see the definition of `beginWork` from [source code here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L3075). The entire method is about 500 lines of code.
 
-从上一节我们已经知道，`beginWork`的工作是传入`当前Fiber节点`，创建`子Fiber节点`，我们从传参来看看具体是如何做的。
+We already know from the previous section that the job of `beginWork` is to pass in the `current Fiber node` and create a `child Fiber node`. Let's see how to do it from passing parameters.
 
-### 从传参看方法执行
+### View method execution from the reference
 
 ```js
 function beginWork(
@@ -15,25 +15,25 @@ function beginWork(
   workInProgress: Fiber,
   renderLanes: Lanes,
 ): Fiber | null {
-  // ...省略函数体
+  // ... Omit the function body
 }
 ```
-其中传参：
-- current：当前组件对应的`Fiber节点`在上一次更新时的`Fiber节点`，即`workInProgress.alternate`
-- workInProgress：当前组件对应的`Fiber节点`
-- renderLanes：优先级相关，在讲解`Scheduler`时再讲解
+Which pass the parameters:
+-current: the `Fiber node` of the `Fiber node` corresponding to the current component in the last update, that is, `workInProgress.alternate`
+-workInProgress: `Fiber node` corresponding to the current component
+-renderLanes: priority is related, and I will explain it when I explain `Scheduler`
 
-从[双缓存机制一节](./doubleBuffer.html)我们知道，除[`rootFiber`](./doubleBuffer.md#mount%E6%97%B6)以外， 组件`mount`时，由于是首次渲染，是不存在当前组件对应的`Fiber节点`在上一次更新时的`Fiber节点`，即`mount`时`current === null`。
+From the [Double Buffer Mechanism](./doubleBuffer.html) we know that, except for [`rootFiber`](./doubleBuffer.md#mount%E6%97%B6), the component `mount` is the first time Rendering means that there is no `Fiber node` at the last update of the `Fiber node` corresponding to the current component, that is, `current === null` at the time of `mount`.
 
-组件`update`时，由于之前已经`mount`过，所以`current !== null`。
+When the component is `update`, since it has been `mount` before, so `current !== null`.
 
-所以我们可以通过`current === null ?`来区分组件是处于`mount`还是`update`。
+So we can use `current === null ?` to distinguish whether the component is in `mount` or `update`.
 
-基于此原因，`beginWork`的工作可以分为两部分：
+For this reason, the work of `beginWork` can be divided into two parts:
 
-- `update`时：如果`current`存在，在满足一定条件时可以复用`current`节点，这样就能克隆`current.child`作为`workInProgress.child`，而不需要新建`workInProgress.child`。
+-When `update`: If `current` exists, the `current` node can be reused when certain conditions are met, so that `current.child` can be cloned as `workInProgress.child` without the need to create a new `workInProgress.child` .
 
-- `mount`时：除`fiberRootNode`以外，`current === null`。会根据`fiber.tag`不同，创建不同类型的`子Fiber节点`
+-When `mount`: Except for `fiberRootNode`, `current === null`. Different types of `child Fiber nodes` will be created according to the difference of `fiber.tag`
 
 ```js
 function beginWork(
@@ -42,11 +42,11 @@ function beginWork(
   renderLanes: Lanes
 ): Fiber | null {
 
-  // update时：如果current存在可能存在优化路径，可以复用current（即上一次更新的Fiber节点）
+  // When updating: If current exists, there may be an optimized path, you can reuse current (that is, the last updated Fiber node)
   if (current !== null) {
-    // ...省略
+    // ... omitted
 
-    // 复用current
+    // reuse current
     return bailoutOnAlreadyFinishedWork(
       current,
       workInProgress,
@@ -56,33 +56,33 @@ function beginWork(
     didReceiveUpdate = false;
   }
 
-  // mount时：根据tag不同，创建不同的子Fiber节点
+  // When mounting: Create different sub-Fiber nodes according to different tags
   switch (workInProgress.tag) {
-    case IndeterminateComponent: 
-      // ...省略
-    case LazyComponent: 
-      // ...省略
-    case FunctionComponent: 
-      // ...省略
-    case ClassComponent: 
-      // ...省略
+    case IndeterminateComponent:
+      // ... omitted
+    case LazyComponent:
+      // ... omitted
+    case FunctionComponent:
+      // ... omitted
+    case ClassComponent:
+      // ... omitted
     case HostRoot:
-      // ...省略
+      // ... omitted
     case HostComponent:
-      // ...省略
+      // ... omitted
     case HostText:
-      // ...省略
-    // ...省略其他类型
+      // ... omitted
+    // ... omit other types
   }
 }
 ```
 
-## update时
+## update time
 
-我们可以看到，满足如下情况时`didReceiveUpdate === false`（即可以直接复用前一次更新的`子Fiber`，不需要新建`子Fiber`）
+We can see that when the following conditions are met, `didReceiveUpdate === false` (that is, the previous updated `sub Fiber` can be directly reused, and there is no need to create a new `sub Fiber`)
 
-1. `oldProps === newProps && workInProgress.type === current.type`，即`props`与`fiber.type`不变
-2. `!includesSomeLane(renderLanes, updateLanes)`，即当前`Fiber节点`优先级不够，会在讲解`Scheduler`时介绍
+1. `oldProps === newProps && workInProgress.type === current.type`, that is, `props` and `fiber.type` remain unchanged
+2. `!includesSomeLane(renderLanes, updateLanes)`, that is, the priority of the current `Fiber node` is not enough, it will be introduced when explaining the `Scheduler`
 
 ```js
 if (current !== null) {
@@ -92,13 +92,13 @@ if (current !== null) {
     if (
       oldProps !== newProps ||
       hasLegacyContextChanged() ||
-      (__DEV__ ? workInProgress.type !== current.type : false)
+      (__DEV__? WorkInProgress.type !== current.type: false)
     ) {
       didReceiveUpdate = true;
     } else if (!includesSomeLane(renderLanes, updateLanes)) {
       didReceiveUpdate = false;
       switch (workInProgress.tag) {
-        // 省略处理
+        // Omit processing
       }
       return bailoutOnAlreadyFinishedWork(
         current,
@@ -112,44 +112,44 @@ if (current !== null) {
     didReceiveUpdate = false;
   }
 ```
-## mount时
+## When mount
 
-当不满足优化路径时，我们就进入第二部分，新建`子Fiber`。
+When the optimized path is not satisfied, we enter the second part, creating a new `sub Fiber`.
 
-我们可以看到，根据`fiber.tag`不同，进入不同类型`Fiber`的创建逻辑。
+We can see that, depending on the `fiber.tag`, enter the creation logic of different types of `Fiber`.
 
-> 可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactWorkTags.js)看到`tag`对应的组件类型
+> You can see the component type corresponding to `tag` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactWorkTags.js)
 
 ```js
-// mount时：根据tag不同，创建不同的Fiber节点
+// When mounting: Create different Fiber nodes according to different tags
 switch (workInProgress.tag) {
-  case IndeterminateComponent: 
-    // ...省略
-  case LazyComponent: 
-    // ...省略
-  case FunctionComponent: 
-    // ...省略
-  case ClassComponent: 
-    // ...省略
+  case IndeterminateComponent:
+    // ... omitted
+  case LazyComponent:
+    // ... omitted
+  case FunctionComponent:
+    // ... omitted
+  case ClassComponent:
+    // ... omitted
   case HostRoot:
-    // ...省略
+    // ... omitted
   case HostComponent:
-    // ...省略
+    // ... omitted
   case HostText:
-    // ...省略
-  // ...省略其他类型
+    // ... omitted
+  // ... omit other types
 }
 ```
 
-对于我们常见的组件类型，如（`FunctionComponent`/`ClassComponent`/`HostComponent`），最终会进入[reconcileChildren](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L233)方法。
+For our common component types, such as (`FunctionComponent`/`ClassComponent`/`HostComponent`), it will eventually enter [reconcileChildren](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler /src/ReactFiberBeginWork.new.js#L233) method.
 
 ## reconcileChildren
 
-从该函数名就能看出这是`Reconciler`模块的核心部分。那么他究竟做了什么呢？
+It can be seen from the function name that this is the core part of the `Reconciler` module. So what did he do?
 
-- 对于`mount`的组件，他会创建新的`子Fiber节点`
+-For `mount` components, he will create a new `child Fiber node`
 
-- 对于`update`的组件，他会将当前组件与该组件在上次更新时对应的`Fiber节点`比较（也就是俗称的`Diff`算法），将比较的结果生成新`Fiber节点`
+-For the component of `update`, he will compare the current component with the corresponding `Fiber node` when the component was last updated (also known as the `Diff` algorithm), and generate a new `Fiber node` from the result of the comparison
 
 ```js
 export function reconcileChildren(
@@ -159,7 +159,7 @@ export function reconcileChildren(
   renderLanes: Lanes
 ) {
   if (current === null) {
-    // 对于mount的组件
+    // For mount components
     workInProgress.child = mountChildFibers(
       workInProgress,
       null,
@@ -167,7 +167,7 @@ export function reconcileChildren(
       renderLanes,
     );
   } else {
-    // 对于update的组件
+    // For update components
     workInProgress.child = reconcileChildFibers(
       workInProgress,
       current.child,
@@ -178,65 +178,65 @@ export function reconcileChildren(
 }
 ```
 
-从代码可以看出，和`beginWork`一样，他也是通过`current === null ?`区分`mount`与`update`。
+As can be seen from the code, like `beginWork`, he also distinguishes `mount` from `update` through `current === null ?`.
 
-不论走哪个逻辑，最终他会生成新的子`Fiber节点`并赋值给`workInProgress.child`，作为本次`beginWork`[返回值](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L1158)，并作为下次`performUnitOfWork`执行时`workInProgress`的[传参](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1702)。
+No matter which logic goes, he will eventually generate a new child `Fiber node` and assign it to `workInProgress.child` as this `beginWork`[return value](https://github.com/facebook/react/blob/ 1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L1158), and used as the [transfer](https://github.com/facebook/react/blob) of `workInProgress` the next time `performUnitOfWork` is executed /1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1702).
 
-::: warning 注意
-值得一提的是，`mountChildFibers`与`reconcileChildFibers`这两个方法的逻辑基本一致。唯一的区别是：`reconcileChildFibers`会为生成的`Fiber节点`带上`effectTag`属性，而`mountChildFibers`不会。
+::: warning note
+It is worth mentioning that the logic of the two methods of `mountChildFibers` and `reconcileChildFibers` is basically the same. The only difference is: `reconcileChildFibers` will bring the `effectTag` property to the generated `Fiber node`, but `mountChildFibers` will not.
 :::
 
 
 
 ## effectTag
 
-我们知道，`render阶段`的工作是在内存中进行，当工作结束后会通知`Renderer`需要执行的`DOM`操作。要执行`DOM`操作的具体类型就保存在`fiber.effectTag`中。
+We know that the work of the `render phase` is carried out in memory, and when the work is over, the `Renderer` will be notified of the `DOM` operations that need to be performed. The specific type of `DOM` operation to be performed is stored in `fiber.effectTag`.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js)看到`effectTag`对应的`DOM`操作
+> You can see the `DOM` operation corresponding to `effectTag` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js)
 
-比如：
+for example:
 
 ```js
-// DOM需要插入到页面中
-export const Placement = /*                */ 0b00000000000010;
-// DOM需要更新
-export const Update = /*                   */ 0b00000000000100;
-// DOM需要插入到页面中并更新
-export const PlacementAndUpdate = /*       */ 0b00000000000110;
-// DOM需要删除
-export const Deletion = /*                 */ 0b00000000001000;
+// DOM needs to be inserted into the page
+export const Placement = /* */ 0b00000000000010;
+// DOM needs to be updated
+export const Update = /* */ 0b00000000000100;
+// DOM needs to be inserted into the page and updated
+export const PlacementAndUpdate = /* */ 0b00000000000110;
+// DOM needs to be deleted
+export const Deletion = /* */ 0b00000000001000;
 ```
 
-> 通过二进制表示`effectTag`，可以方便的使用位操作为`fiber.effectTag`赋值多个`effect`。
+> Through the binary representation of `effectTag`, it is convenient to use bit operation to assign multiple `effect` to `fiber.effectTag`.
 
-那么，如果要通知`Renderer`将`Fiber节点`对应的`DOM节点`插入页面中，需要满足两个条件：
+Then, if you want to notify the `Renderer` to insert the `DOM node` corresponding to the `Fiber node` into the page, two conditions need to be met:
 
-1. `fiber.stateNode`存在，即`Fiber节点`中保存了对应的`DOM节点`
+1. `fiber.stateNode` exists, that is, the corresponding `DOM node` is saved in the `Fiber node`
 
-2. `(fiber.effectTag & Placement) !== 0`，即`Fiber节点`存在`Placement effectTag`
+2. `(fiber.effectTag & Placement) !== 0`, that is, `Placement effectTag` exists in `Fiber node`
 
-我们知道，`mount`时，`fiber.stateNode === null`，且在`reconcileChildren`中调用的`mountChildFibers`不会为`Fiber节点`赋值`effectTag`。那么首屏渲染如何完成呢？
+We know that when `mount`, `fiber.stateNode === null`, and `mountChildFibers` called in `reconcileChildren` will not assign `effectTag` to `Fiber node`. So how is the above-the-fold rendering done?
 
-针对第一个问题，`fiber.stateNode`会在`completeWork`中创建，我们会在下一节介绍。
+For the first question, `fiber.stateNode` will be created in `completeWork`, which we will introduce in the next section.
 
-第二个问题的答案十分巧妙：假设`mountChildFibers`也会赋值`effectTag`，那么可以预见`mount`时整棵`Fiber树`所有节点都会有`Placement effectTag`。那么`commit阶段`在执行`DOM`操作时每个节点都会执行一次插入操作，这样大量的`DOM`操作是极低效的。
+The answer to the second question is very clever: assuming that `mountChildFibers` will also assign `effectTag`, then it can be predicted that all nodes of the entire `Fiber tree` will have `Placement effectTag` when `mount`. Then, in the `commit phase`, each node will perform an insert operation when executing the `DOM` operation. Such a large number of `DOM` operations are extremely inefficient.
 
-为了解决这个问题，在`mount`时只有`rootFiber`会赋值`Placement effectTag`，在`commit阶段`只会执行一次插入操作。
+In order to solve this problem, only `rootFiber` will assign the value of `Placement effectTag` when `mount`, and only one insertion operation will be performed during the `commit phase`.
 
-::: details 根Fiber节点 Demo
-借用上一节的Demo，第一个进入`beginWork`方法的`Fiber节点`就是`rootFiber`，他的`alternate`指向`current rootFiber`（即他存在`current`）。
+::: details Root Fiber Node Demo
+Borrowing the Demo from the previous section, the first `Fiber node` to enter the `beginWork` method is `rootFiber`, and his `alternate` points to `current rootFiber` (that is, he exists `current`).
 
-> 为什么`rootFiber`节点存在`current`（即`rootFiber.alternate`），我们在[双缓存机制一节mount时的第二步](./doubleBuffer.html)已经讲过
+> Why does the `rootFiber` node have `current` (ie `rootFiber.alternate`), we have already talked about it in [the second step of mount in the section of double buffer mechanism](./doubleBuffer.html)
 
-由于存在`current`，`rootFiber`在`reconcileChildren`时会走`reconcileChildFibers`逻辑。
+Due to the existence of `current`, `rootFiber` will follow the logic of `reconcileChildFibers` when `reconcileChildren`.
 
-而之后通过`beginWork`创建的`Fiber节点`是不存在`current`的（即 `fiber.alternate === null`），会走`mountChildFibers`逻辑
+And then the `Fiber node` created by `beginWork` does not exist in `current` (ie `fiber.alternate === null`), it will follow the logic of `mountChildFibers`
 
-[关注公众号](../me.html)，后台回复**531**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **531** to get the online Demo address
 :::
 
-## 参考资料
+## Reference
 
-`beginWork`流程图
+`beginWork` flowchart
 
-<img :src="$withBase('/img/beginWork.png')" alt="beginWork流程图">
+<img :src="$withBase('/img/beginWork.png')" alt="beginWork flowchart">

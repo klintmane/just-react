@@ -1,38 +1,38 @@
-在[新的React架构](../preparation/newConstructure.html#react16架构)一节我们介绍了`Scheduler`，他包含两个功能：
+In the [New React Architecture](../preparation/newConstructure.html#react16 Architecture) section, we introduced the `Scheduler`, which contains two functions:
 
-1. 时间切片
+1. Time slice
 
-2. 优先级调度
+2. Priority scheduling
 
-本节我们学习这个两个功能是如何在`Scheduler`中实现的。
+In this section we learn how these two functions are implemented in `Scheduler`.
 
-## 时间切片原理
+## Time slicing principle
 
-`时间切片`的本质是模拟实现[requestIdleCallback](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback)。
+The essence of `time slice` is to simulate the realization of [requestIdleCallback](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback).
 
-除去“浏览器重排/重绘”，下图是浏览器一帧中可以用于执行`JS`的时机。
+Excluding the "browser reflow/redraw", the following figure is the timing that can be used to execute `JS` in one frame of the browser.
 
 ```js
-一个task(宏任务) -- 队列中全部job(微任务) -- requestAnimationFrame -- 浏览器重排/重绘 -- requestIdleCallback
+A task (macro task) - all jobs (micro tasks) in the queue - requestAnimationFrame - browser reflow/redraw - requestIdleCallback
 ```
 
-`requestIdleCallback`是在“浏览器重排/重绘”后如果当前帧还有空余时间时被调用的。
+`requestIdleCallback` is called when there is free time in the current frame after "browser reflow/redraw".
 
-浏览器并没有提供其他`API`能够在同样的时机（浏览器重排/重绘后）调用以模拟其实现。
+The browser does not provide other APIs that can be called at the same timing (after browser reflow/redraw) to simulate its implementation.
 
-唯一能精准控制调用时机的`API`是`requestAnimationFrame`，他能让我们在“浏览器重排/重绘”之前执行`JS`。
+The only `API` that can precisely control the timing of the call is `requestAnimationFrame`, which allows us to execute `JS` before "browser reflow/redraw".
 
-这也是为什么我们通常用这个`API`实现`JS`动画 —— 这是浏览器渲染前的最后时机，所以动画能快速被渲染。
+This is why we usually use this `API` to implement `JS` animation-this is the last time before the browser renders, so the animation can be rendered quickly.
 
-所以，退而求其次，`Scheduler`的`时间切片`功能是通过`task`（宏任务）实现的。
+Therefore, the second best thing is that the `time slicing` function of `Scheduler` is realized by `task` (macro task).
 
-最常见的`task`当属`setTimeout`了。但是有个`task`比`setTimeout`执行时机更靠前，那就是[MessageChannel](https://developer.mozilla.org/zh-CN/docs/Web/API/MessageChannel)。
+The most common `task` is definitely `setTimeout`. But there is a `task` that is more timely than `setTimeout`, and that is [MessageChannel](https://developer.mozilla.org/zh-CN/docs/Web/API/MessageChannel).
 
-所以`Scheduler`将需要被执行的回调函数作为`MessageChannel`的回调执行。如果当前宿主环境不支持`MessageChannel`，则使用`setTimeout`。
+So `Scheduler` will execute the callback function that needs to be executed as the callback of `MessageChannel`. If the current host environment does not support `MessageChannel`, use `setTimeout`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L228-L234)看到`MessageChannel`的实现。[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L47-L55)看到`setTimeout`的实现
+> You can see the implementation of `MessageChannel` in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L228-L234). [Here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L47-L55) see the implementation of `setTimeout`
 
-在`React`的`render`阶段，开启`Concurrent Mode`时，每次遍历前，都会通过`Scheduler`提供的`shouldYield`方法判断是否需要中断遍历，使浏览器有时间渲染：
+In the `render` stage of `React`, when the `Concurrent Mode` is turned on, before each traversal, the `shouldYield` method provided by the `Scheduler` will be used to determine whether the traversal needs to be interrupted so that the browser has time to render:
 
 ```js
 function workLoopConcurrent() {
@@ -43,29 +43,29 @@ function workLoopConcurrent() {
 }
 ```
 
-是否中断的依据，最重要的一点便是每个任务的剩余时间是否用完。
+The basis for whether to interrupt is the most important point is whether the remaining time of each task is used up.
 
-在`Schdeduler`中，为任务分配的初始剩余时间为`5ms`。
+In `Schdeduler`, the initial remaining time allocated to the task is `5ms`.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L119)看到初始剩余时间的定义
+> You can see the definition of the initial remaining time from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L119)
 
-随着应用运行，会通过`fps`动态调整分配给任务的可执行时间。
+As the application runs, the executable time allocated to the task will be dynamically adjusted through `fps`.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L172-L187)看到动态分配任务时间
+> You can see the dynamic assignment time from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/forks/SchedulerHostConfig.default.js#L172-L187)
 
-这也解释了为什么[设计理念](../preparation/idea.html#cpu的瓶颈)一节启用`Concurrent Mode`后每个任务的执行时间大体都是多于5ms的一小段时间 —— 每个时间切片被设定为5ms，任务本身再执行一小段时间，所以整体时间是多于5ms的时间
+This also explains why the [Design Philosophy](../preparation/idea.html#cpu bottleneck) section After enabling the `Concurrent Mode`, the execution time of each task is generally a short period of more than 5ms-every Each time slice is set to 5ms, and the task itself is executed for a short period of time, so the overall time is more than 5ms
 
-<img :src="$withBase('/img/time-slice.png')" alt="长任务">
+<img :src="$withBase('/img/time-slice.png')" alt="long task">
 
-那么当`shouldYield`为`true`，以至于`performUnitOfWork`被中断后是如何重新启动的呢？我们会在介绍完"优先级调度"后解答。
+So when `shouldYield` is `true`, how to restart after `performUnitOfWork` is interrupted? We will answer after introducing "priority scheduling".
 
-## 优先级调度
+## Priority scheduling
 
-首先我们来了解`优先级`的来源。需要明确的一点是，`Scheduler`是独立于`React`的包，所以他的`优先级`也是独立于`React`的`优先级`的。
+First, let's understand the source of `priority`. One thing to be clear is that `Scheduler` is a package independent of `React`, so its `priority` is also independent of `React`'s `priority`.
 
-`Scheduler`对外暴露了一个方法[unstable_runWithPriority](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/Scheduler.js#L217-L237)。
+`Scheduler` exposes a method [unstable_runWithPriority](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/Scheduler.js#L217-L237).
 
-这个方法接受一个`优先级`与一个`回调函数`，在`回调函数`内部调用获取`优先级`的方法都会取得第一个参数对应的`优先级`：
+This method accepts a `priority` and a `callback function`. Calling the method of obtaining the `priority` inside the `callback function` will get the `priority` corresponding to the first parameter:
 
 ```js
 function unstable_runWithPriority(priorityLevel, eventHandler) {
@@ -90,14 +90,13 @@ function unstable_runWithPriority(priorityLevel, eventHandler) {
   }
 }
 ```
+As you can see, there are 5 priority levels inside the `Scheduler`.
 
-可以看到，`Scheduler`内部存在5种优先级。
+In `React`, wherever `priority` scheduling is involved, `unstable_runWithPriority` will be used.
 
-在`React`内部凡是涉及到`优先级`调度的地方，都会使用`unstable_runWithPriority`。
+For example, we know that the `commit` phase is executed synchronously. As you can see, the priority of the `commitRoot` method at the starting point of the `commit` phase is `ImmediateSchedulerPriority`.
 
-比如，我们知道`commit`阶段是同步执行的。可以看到，`commit`阶段的起点`commitRoot`方法的优先级为`ImmediateSchedulerPriority`。
-
-`ImmediateSchedulerPriority`即`ImmediatePriority`的别名，为最高优先级，会立即执行。
+`ImmediateSchedulerPriority` is an alias of `ImmediatePriority`, which is the highest priority and will be executed immediately.
 
 ```js
 function commitRoot(root) {
@@ -110,11 +109,11 @@ function commitRoot(root) {
 }
 ```
 
-## 优先级的意义
+## The meaning of priority
 
-`Scheduler`对外暴露最重要的方法便是[unstable_scheduleCallback](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/Scheduler.js#L279-L359)。该方法用于以某个`优先级`注册回调函数。
+The most important way for `Scheduler` to expose externally is [unstable_scheduleCallback](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/Scheduler.js#L279-L359). This method is used to register callback functions with a certain `priority`.
 
-比如在`React`中，之前讲过在`commit`阶段的`beforeMutation`阶段会调度`useEffect`的回调：
+For example, in `React`, it was mentioned before that the callback of `useEffect` would be scheduled in the `beforeMutation` stage of the `commit` stage:
 
 ```js
 if (!rootDoesHavePassiveEffects) {
@@ -126,9 +125,9 @@ if (!rootDoesHavePassiveEffects) {
 }
 ```
 
-这里的回调便是通过`scheduleCallback`调度的，优先级为`NormalSchedulerPriority`，即`NormalPriority`。
+The callback here is scheduled through `scheduleCallback`, and the priority is `NormalSchedulerPriority`, that is, `NormalPriority`.
 
-不同`优先级`意味着什么？不同`优先级`意味着不同时长的任务过期时间：
+What does different `priority` mean? Different `priority` means task expiration time of different duration:
 
 ```js
 var timeout;
@@ -154,7 +153,7 @@ switch (priorityLevel) {
 var expirationTime = startTime + timeout;
 ```
 
-其中：
+in:
 
 ```js
 // Times out immediately
@@ -167,29 +166,29 @@ var LOW_PRIORITY_TIMEOUT = 10000;
 var IDLE_PRIORITY_TIMEOUT = maxSigned31BitInt;
 ```
 
-可以看到，如果一个任务的`优先级`是`ImmediatePriority`，对应`IMMEDIATE_PRIORITY_TIMEOUT`为`-1`，那么
+As you can see, if the `priority` of a task is `ImmediatePriority`, corresponding to `IMMEDIATE_PRIORITY_TIMEOUT` is `-1`, then
 
 ```js
-var expirationTime = startTime - 1;
+var expirationTime = startTime-1;
 ```
 
-则该任务的过期时间比当前时间还短，表示他已经过期了，需要立即被执行。
+Then the expiration time of the task is shorter than the current time, indicating that it has expired and needs to be executed immediately.
 
-## 不同优先级任务的排序
+## Sorting of different priority tasks
 
-我们已经知道`优先级`意味着任务的过期时间。设想一个大型`React`项目，在某一刻，存在很多不同`优先级`的`任务`，对应不同的过期时间。
+We already know that `priority` means the expiration time of the task. Imagine a large `React` project. At a certain moment, there are many `tasks` with different `priority`, corresponding to different expiration times.
 
-同时，又因为任务可以被延迟，所以我们可以将这些任务按是否被延迟分为：
+At the same time, because tasks can be delayed, we can divide these tasks into different types according to whether they are delayed:
 
-- 已就绪任务
+-Tasks are ready
 
-- 未就绪任务
+-Not ready task
 
 ```js
-  if (typeof options === 'object' && options !== null) {
+  if (typeof options ==='object' && options !== null) {
     var delay = options.delay;
-    if (typeof delay === 'number' && delay > 0) {
-      // 任务被延迟
+    if (typeof delay ==='number' && delay> 0) {
+      // task is delayed
       startTime = currentTime + delay;
     } else {
       startTime = currentTime;
@@ -199,33 +198,33 @@ var expirationTime = startTime - 1;
   }
 ```
 
-所以，`Scheduler`存在两个队列：
+Therefore, there are two queues in `Scheduler`:
 
-- timerQueue：保存未就绪任务
+-timerQueue: save tasks that are not ready
 
-- taskQueue：保存已就绪任务
+-taskQueue: save ready tasks
 
-每当有新的未就绪的任务被注册，我们将其插入`timerQueue`并根据开始时间重新排列`timerQueue`中任务的顺序。
+Whenever a new task that is not ready is registered, we insert it into the `timerQueue` and rearrange the order of the tasks in the `timerQueue` according to the start time.
 
-当`timerQueue`中有任务就绪，即`startTime <= currentTime `，我们将其取出并加入`taskQueue`。
+When a task in `timerQueue` is ready, that is, `startTime <= currentTime`, we take it out and add it to `taskQueue`.
 
-取出`taskQueue`中最早过期的任务并执行他。
+Take out the earliest expired task in `taskQueue` and execute it.
 
-为了能在O(1)复杂度找到两个队列中时间最早的那个任务，`Scheduler`使用[小顶堆](https://www.cnblogs.com/lanhaicode/p/10546257.html)实现了`优先级队列`。
+In order to find the earliest task in the two queues in O(1) complexity, `Scheduler` uses [small top heap](https://www.cnblogs.com/lanhaicode/p/10546257.html) to achieve `Priority queue`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/SchedulerMinHeap.js)看到`优先级队列`的实现
+> You can see the implementation of `priority queue` in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/src/SchedulerMinHeap.js)
 
-至此，我们了解了`Scheduler`的实现。现在可以回答介绍`时间切片`时提到的问题：
+So far, we understand the realization of `Scheduler`. Now you can answer the questions mentioned in the introduction of `time slice`:
 
-> 那么当shouldYield为true，以至于performUnitOfWork被中断后是如何重新启动的呢？
+> So when shouldYield is true, how to restart after performUnitOfWork is interrupted?
 
-在“取出`taskQueue`中最早过期的任务并执行他”这一步中有如下关键步骤：
+In the step of "take out the earliest expired task in `taskQueue` and execute it", there are the following key steps:
 
 ```js
 const continuationCallback = callback(didUserCallbackTimeout);
 currentTime = getCurrentTime();
-if (typeof continuationCallback === 'function') {
-  // continuationCallback是函数
+if (typeof continuationCallback ==='function') {
+  // continuationCallback is a function
   currentTask.callback = continuationCallback;
   markTaskYield(currentTask, currentTime);
 } else {
@@ -234,18 +233,18 @@ if (typeof continuationCallback === 'function') {
     currentTask.isQueued = false;
   }
   if (currentTask === peek(taskQueue)) {
-    // 将当前任务清除
+    // Clear the current task
     pop(taskQueue);
   }
 }
 advanceTimers(currentTime);
 ```
 
-当注册的回调函数执行后的返回值`continuationCallback`为`function`，会将`continuationCallback`作为当前任务的回调函数。
+When the return value `continuationCallback` after the execution of the registered callback function is `function`, `continuationCallback` will be used as the callback function of the current task.
 
-如果返回值不是`function`，则将当前被执行的任务清除出`taskQueue`。
+If the return value is not `function`, the task currently being executed will be cleared out of `taskQueue`.
 
-`render`阶段被调度的函数为`performConcurrentWorkOnRoot`，在该函数末尾有这样一段代码：
+The function scheduled in the `render` phase is `performConcurrentWorkOnRoot`, and there is such a piece of code at the end of the function:
 
 ```js
 if (root.callbackNode === originalCallbackNode) {
@@ -255,10 +254,10 @@ if (root.callbackNode === originalCallbackNode) {
 }
 ```
 
-可以看到，在满足一定条件时，该函数会将自己作为返回值。
+As you can see, when certain conditions are met, the function will take itself as the return value.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L850-L854)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L850-L854)
 
-## 总结
+## Summarize
 
-刚才我们讲到，`Scheduler`与`React`是两套`优先级`机制。那么`React`中的`优先级`是如何运转的？我们会在下一节介绍。
+As we mentioned earlier, `Scheduler` and `React` are two sets of `priority` mechanisms. So how does the `priority` in `React` work? We will introduce it in the next section.

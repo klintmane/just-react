@@ -1,101 +1,101 @@
-经过前几章的学习，我们终于有足够的前置知识理解**状态更新**的整个流程。
+After studying in the previous chapters, we finally have enough pre-knowledge to understand the entire process of **status update**.
 
-这一章我们看看几种常见的触发**状态更新**的方法是如何完成工作的。
+In this chapter, we look at how several common methods of triggering **status update** accomplish their work.
 
-## 几个关键节点
+## Several key nodes
 
-在开始学习前，我们先了解源码中几个关键节点（即几个关键函数的调用）。通过这章的学习，我们会将这些关键节点的调用路径串起来。
+Before starting to learn, we first understand a few key nodes in the source code (that is, the calls of several key functions). Through the study of this chapter, we will string together the call paths of these key nodes.
 
-先从我们所熟知的概念开始。
+Let's start with the concepts we are familiar with.
 
-### render阶段的开始
+### The beginning of the render phase
 
-我们在[render阶段流程概览一节](../process/reconciler.html)讲到，
+We mentioned in the [render stage process overview section](../process/reconciler.html),
 
-`render阶段`开始于`performSyncWorkOnRoot`或`performConcurrentWorkOnRoot`方法的调用。这取决于本次更新是同步更新还是异步更新。
+The `render phase` starts with the call of the `performSyncWorkOnRoot` or `performConcurrentWorkOnRoot` method. It depends on whether the update is synchronous or asynchronous.
 
-### commit阶段的开始
+### The beginning of the commit phase
 
-我们在[commit阶段流程概览一节](../renderer/prepare.html)讲到，
+We mentioned in the [commit stage process overview section](../renderer/prepare.html),
 
-`commit阶段`开始于`commitRoot`方法的调用。其中`rootFiber`会作为传参。
+The `commit phase` starts with the call of the `commitRoot` method. Among them, `rootFiber` will be used as a parameter.
 
-我们已经知道，`render阶段`完成后会进入`commit阶段`。让我们继续补全从`触发状态更新`到`render阶段`的路径。
+We already know that after the completion of the `render phase`, it will enter the `commit phase`. Let us continue to complete the path from `trigger status update` to `render phase`.
 
 ```sh
-触发状态更新（根据场景调用不同方法）
+Trigger status update (call different methods according to the scene)
 
     |
     |
     v
 
-    ？
+    ?
 
     |
     |
     v
 
-render阶段（`performSyncWorkOnRoot` 或 `performConcurrentWorkOnRoot`）
+render phase (`performSyncWorkOnRoot` or `performConcurrentWorkOnRoot`)
 
     |
     |
     v
 
-commit阶段（`commitRoot`）
+commit phase (`commitRoot`)
 ```
 
-### 创建Update对象
+### Create Update Object
 
-在`React`中，有如下方法可以触发状态更新（排除`SSR`相关）：
+In `React`, there are the following methods to trigger status updates (excluding `SSR` related):
 
-- ReactDOM.render
+-ReactDOM.render
 
-- this.setState
+-this.setState
 
-- this.forceUpdate
+-this.forceUpdate
 
-- useState
+-useState
 
-- useReducer
+-useReducer
 
-这些方法调用的场景各不相同，他们是如何接入同一套**状态更新机制**呢？
+These methods are called in different scenarios, how do they access the same set of **status update mechanism**?
 
-答案是：每次`状态更新`都会创建一个保存**更新状态相关内容**的对象，我们叫他`Update`。在`render阶段`的`beginWork`中会根据`Update`计算新的`state`。
+The answer is: every time `status update` will create an object that saves **update status related content**, we call it `Update`. In the `beginWork` of the `render phase`, a new `state` will be calculated based on the `Update`.
 
-我们会在下一节详细讲解`Update`。
+We will explain `Update` in detail in the next section.
 
-### 从fiber到root
+### From fiber to root
 
-现在`触发状态更新的fiber`上已经包含`Update`对象。
+Now the `Update` object is included on the `fiber` that triggers the status update.
 
-我们知道，`render阶段`是从`rootFiber`开始向下遍历。那么如何从`触发状态更新的fiber`得到`rootFiber`呢？
+We know that the `render phase` starts from the `rootFiber` and traverses downwards. So how do you get the `rootFiber` from the `fiber` that triggered the status update?
 
-答案是：调用`markUpdateLaneFromFiberToRoot`方法。
+The answer is: call the `markUpdateLaneFromFiberToRoot` method.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L636)看到`markUpdateLaneFromFiberToRoot`的源码
+> You can see the source code of `markUpdateLaneFromFiberToRoot` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L636)
 
-该方法做的工作可以概括为：从`触发状态更新的fiber`一直向上遍历到`rootFiber`，并返回`rootFiber`。
+The work done by this method can be summarized as follows: traverse upward from the fiber that triggered the status update to rootFiber, and return to rootFiber.
 
-由于不同更新优先级不尽相同，所以过程中还会更新遍历到的`fiber`的优先级。这对于我们当前属于超纲内容。
+Since different update priorities are not the same, the priority of the traversed `fiber` will also be updated during the process. This is super-class content for us currently.
 
-### 调度更新
+### Scheduling updates
 
-现在我们拥有一个`rootFiber`，该`rootFiber`对应的`Fiber树`中某个`Fiber节点`包含一个`Update`。
+Now we have a `rootFiber`, and a `Fiber node` in the `Fiber tree` corresponding to this `rootFiber` contains an `Update`.
 
-接下来通知`Scheduler`根据**更新**的优先级，决定以**同步**还是**异步**的方式调度本次更新。
+Next, notify the `Scheduler` to decide whether to schedule this update in a **synchronous** or **asynchronous** mode according to the priority of **update**.
 
-这里调用的方法是`ensureRootIsScheduled`。
+The method called here is `ensureRootIsScheduled`.
 
-以下是`ensureRootIsScheduled`最核心的一段代码：
+The following is the core piece of code of `ensureRootIsScheduled`:
 
 ```js
 if (newCallbackPriority === SyncLanePriority) {
-  // 任务已经过期，需要同步执行render阶段
+  // The task has expired and the render phase needs to be executed synchronously
   newCallbackNode = scheduleSyncCallback(
     performSyncWorkOnRoot.bind(null, root)
   );
 } else {
-  // 根据任务优先级异步执行render阶段
+  // Asynchronously execute the render phase according to task priority
   var schedulerPriorityLevel = lanePriorityToSchedulerPriority(
     newCallbackPriority
   );
@@ -106,61 +106,61 @@ if (newCallbackPriority === SyncLanePriority) {
 }
 ```
 
-> 你可以从[这里](https://github.com/facebook/react/blob/b6df4417c79c11cfb44f965fab55b573882b1d54/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L602)看到`ensureRootIsScheduled`的源码
+> You can see the source code of `ensureRootIsScheduled` from [here](https://github.com/facebook/react/blob/b6df4417c79c11cfb44f965fab55b573882b1d54/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L602)
 
-其中，`scheduleCallback`和`scheduleSyncCallback`会调用`Scheduler`提供的调度方法根据`优先级`调度回调函数执行。
+Among them, `scheduleCallback` and `scheduleSyncCallback` will call the scheduling method provided by `Scheduler` to schedule the callback function according to the `priority`.
 
-可以看到，这里调度的回调函数为：
+As you can see, the callback function scheduled here is:
 
 ```js
 performSyncWorkOnRoot.bind(null, root);
 performConcurrentWorkOnRoot.bind(null, root);
 ```
 
-即`render阶段`的入口函数。
+That is, the entry function of the `render phase`.
 
-至此，`状态更新`就和我们所熟知的`render阶段`连接上了。
+At this point, the `status update` is connected with the well-known `render phase`.
 
-## 总结
+## Summarize
 
-让我们梳理下`状态更新`的整个调用路径的关键节点：
+Let us sort out the key nodes of the entire call path of `status update`:
 
 ```sh
-触发状态更新（根据场景调用不同方法）
+Trigger status update (call different methods according to the scene)
 
     |
     |
     v
 
-创建Update对象（接下来三节详解）
+Create an Update object (explained in the next three sections)
 
     |
     |
     v
 
-从fiber到root（`markUpdateLaneFromFiberToRoot`）
+From fiber to root (`markUpdateLaneFromFiberToRoot`)
 
     |
     |
     v
 
-调度更新（`ensureRootIsScheduled`）
+Schedule update (`ensureRootIsScheduled`)
 
     |
     |
     v
 
-render阶段（`performSyncWorkOnRoot` 或 `performConcurrentWorkOnRoot`）
+render phase (`performSyncWorkOnRoot` or `performConcurrentWorkOnRoot`)
 
     |
     |
     v
 
-commit阶段（`commitRoot`）
+commit phase (`commitRoot`)
 ```
 
-## 总结
+## Summarize
 
-本节我们了解了**状态更新**的整个流程。
+In this section, we understand the entire process of **status update**.
 
-在接下来三节中，我们会花大量篇幅讲解`Update`的工作机制，因为他是构成`React concurrent mode`的核心机制之一。
+In the next three sections, we will spend a lot of time explaining the working mechanism of `Update`, because it is one of the core mechanisms of `React concurrent mode`.

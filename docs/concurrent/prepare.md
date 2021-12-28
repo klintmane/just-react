@@ -1,62 +1,62 @@
-在[ReactDOM.render](../state/reactdom.html#react%E7%9A%84%E5%85%B6%E4%BB%96%E5%85%A5%E5%8F%A3%E5%87%BD%E6%95%B0)一节我们介绍了`React`当前的三种入口函数。日常开发主要使用的是`Legacy Mode`（通过`ReactDOM.render`创建）。
+In [ReactDOM.render](../state/reactdom.html#react%E7%9A%84%E5%85%B6%E4%BB%96%E5%85%A5%E5%8F%A3%E5% In section 87%BD%E6%95%B0), we introduced the current three entry functions of `React`. Daily development mainly uses `Legacy Mode` (created by `ReactDOM.render`).
 
-从[React v17.0 正式发布！](https://mp.weixin.qq.com/s/zrrqldzRbcPApga_Cp2b8A)一文可以看到，`v17.0`没有包含新特性。究其原因，`v17.0`主要的工作在于源码内部对`Concurrent Mode`的支持。所以`v17`版本也被称为“垫脚石”版本。
+From [React v17.0 officially released! ](https://mp.weixin.qq.com/s/zrrqldzRbcPApga_Cp2b8A) As you can see in the article, `v17.0` does not contain new features. The reason is that the main work of `v17.0` lies in the support of `Concurrent Mode` in the source code. So the `v17` version is also called the "stepping stone" version.
 
-你可以从官网[Concurrent 模式介绍](https://zh-hans.reactjs.org/docs/concurrent-mode-intro.html)了解其基本概念。
+You can learn about its basic concepts from the official website [Introduction to Concurrent Mode](https://zh-hans.reactjs.org/docs/concurrent-mode-intro.html).
 
-一句话概括：
+One sentence summary:
 
-> Concurrent 模式是一组 React 的新功能，可帮助应用保持响应，并根据用户的设备性能和网速进行适当的调整。
+> Concurrent mode is a set of new features of React, which can help the application to remain responsive and make appropriate adjustments according to the user's device performance and network speed.
 
-`Concurrent Mode`是`React`过去2年重构`Fiber架构`的源动力，也是`React`未来的发展方向。
+`Concurrent Mode` is the driving force behind the refactoring of `Fiber architecture` in the past 2 years by `React`, and it is also the future development direction of `React`.
 
-可以预见，当`v17`完美支持`Concurrent Mode`后，`v18`会迎来一大波基于`Concurrent Mode`的库。
+It is foreseeable that when `v17` perfectly supports `Concurrent Mode`, `v18` will usher in a large wave of libraries based on `Concurrent Mode`.
 
-底层基础决定了上层`API`的实现，接下来让我们了解下，`Concurrent Mode`自底向上都包含哪些组成部分，能够发挥哪些能力？
+The underlying foundation determines the implementation of the upper layer API. Next, let us understand what components are included in Concurrent Mode from the bottom up, and what capabilities can it exert?
 
-## 底层架构 —— Fiber架构
+## Underlying Architecture-Fiber Architecture
 
-从[设计理念](../preparation/idea.html)我们了解到要实现`Concurrent Mode`，最关键的一点是：实现异步可中断的更新。
+From [Design Concept](../preparation/idea.html), we learned that the most critical point for implementing `Concurrent Mode` is to achieve asynchronous and interruptible updates.
 
-基于这个前提，`React`花费2年时间重构完成了`Fiber`架构。
+Based on this premise, `React` spent 2 years refactoring to complete the `Fiber` architecture.
 
-`Fiber`架构的意义在于，他将单个`组件`作为`工作单元`，使以`组件`为粒度的“异步可中断的更新”成为可能。
+The significance of the `Fiber` architecture is that it uses a single `component` as a `unit of work`, making it possible to "asynchronously interruptible updates" with the granularity of `components`.
 
-## 架构的驱动力 —— Scheduler
+## The driving force of the architecture-Scheduler
 
-如果我们同步运行`Fiber`架构（通过`ReactDOM.render`），则`Fiber`架构与重构前并无区别。
+If we run the `Fiber` architecture synchronously (via `ReactDOM.render`), the `Fiber` architecture is the same as before the refactoring.
 
-但是当我们配合`时间切片`，就能根据宿主环境性能，为每个`工作单元`分配一个`可运行时间`，实现“异步可中断的更新”。
+But when we cooperate with `time slicing`, we can allocate a `runtime` for each `unit of work` according to the performance of the host environment, so as to realize "asynchronous interruptible update".
 
-于是，[scheduler](https://github.com/facebook/react/tree/master/packages/scheduler)（调度器）产生了。
+Thus, [scheduler](https://github.com/facebook/react/tree/master/packages/scheduler) (scheduler) was produced.
 
-## 架构运行策略 —— lane模型
+## Architecture operation strategy-lane model
 
-到目前为止，`React`可以控制`更新`在`Fiber`架构中运行/中断/继续运行。
+So far, `React` can control `Update` to run/interrupt/continue running in the `Fiber` architecture.
 
-基于当前的架构，当一次`更新`在运行过程中被中断，过段时间再继续运行，这就是“异步可中断的更新”。
+Based on the current architecture, when an `update` is interrupted in the running process, it will continue to run after a period of time, which is called "asynchronous interruptible update".
 
-当一次`更新`在运行过程中被中断，转而重新开始一次新的`更新`，我们可以说：后一次`更新`打断了前一次`更新`。
+When an `update` is interrupted during the running process, and a new `update` is restarted, we can say: the next `update` interrupted the previous `update`.
 
-这就是`优先级`的概念：后一次`更新`的`优先级`更高，他打断了正在进行的前一次`更新`。
+This is the concept of `priority`: the `priority` of the next `update` is higher, and he interrupted the previous `update` in progress.
 
-多个`优先级`之间如何互相打断？`优先级`能否升降？本次`更新`应该赋予什么`优先级`？
+How can multiple `priority`s interrupt each other? Can the `priority` be raised or lowered? What `priority` should be given to this `update`?
 
-这就需要一个模型控制不同`优先级`之间的关系与行为，于是`lane`模型诞生了。
+This requires a model to control the relationship and behavior between different `priorities`, so the `lane` model was born.
 
-## 上层实现
+## Upper implementation
 
-现在，我们可以说：
+Now we can say:
 
-> 从源码层面讲，Concurrent Mode是一套可控的“多优先级更新架构”。
+> From the source level, Concurrent Mode is a controllable "multi-priority update architecture".
 
-那么基于该架构之上可以实现哪些有意思的功能？我们举几个例子：
+So what interesting functions can be achieved based on this architecture? Let's give a few examples:
 
 ### batchedUpdates
 
-如果我们在一次事件回调中触发多次`更新`，他们会被合并为一次`更新`进行处理。
+If we trigger multiple `updates` in one event callback, they will be merged into one `update` for processing.
 
-如下代码执行只会触发一次`更新`：
+The execution of the following code will only trigger an update once:
 
 ```js
 onClick() {
@@ -66,43 +66,36 @@ onClick() {
 }
 ```
 
-这种合并多个`更新`的优化方式被称为`batchedUpdates`。
+This optimized way of merging multiple `updates` is called `batchedUpdates`.
 
-`batchedUpdates`在很早的版本就存在了，不过之前的实现局限很多（脱离当前上下文环境的`更新`不会被合并）。
+`batchedUpdates` existed in a very early version, but the previous implementation has many limitations (`updates` out of the current context will not be merged).
 
-在`Concurrent Mode`中，是以`优先级`为依据对更新进行合并的，使用范围更广。
+In `Concurrent Mode`, updates are merged based on `priority`, which is more widely used.
 
 ### Suspense
 
-[Suspense](https://zh-hans.reactjs.org/docs/concurrent-mode-suspense.html)可以在组件请求数据时展示一个`pending`状态。请求成功后渲染数据。
+[Suspense](https://zh-hans.reactjs.org/docs/concurrent-mode-suspense.html) can show a `pending` status when the component requests data. Render the data after the request is successful.
 
-本质上讲`Suspense`内的组件子树比组件树的其他部分拥有更低的`优先级`。
+Essentially, the component subtree in `Suspense` has a lower priority than other parts of the component tree.
 
 ### useDeferredValue
 
-[useDeferredValue](https://zh-hans.reactjs.org/docs/concurrent-mode-reference.html#usedeferredvalue)返回一个延迟响应的值，该值可能“延后”的最长时间为`timeoutMs`。
+[useDeferredValue](https://en .
 
-例子：
+example:
 
 ```js
-const deferredValue = useDeferredValue(value, { timeoutMs: 2000 });
+const deferredValue = useDeferredValue(value, {timeoutMs: 2000 });
 ```
 
-在`useDeferredValue`内部会调用`useState`并触发一次`更新`。
+Inside `useDeferredValue`, `useState` is called and an `update` is triggered.
 
-这次`更新`的`优先级`很低，所以当前如果有正在进行中的`更新`，不会受`useDeferredValue`产生的`更新`影响。所以`useDeferredValue`能够返回延迟的值。
+This time, the `priority` of `update` is very low, so if there is currently an `update` in progress, it will not be affected by the `update` produced by `useDeferredValue`. So `useDeferredValue` can return the delayed value.
 
-当超过`timeoutMs`后`useDeferredValue`产生的`更新`还没进行（由于`优先级`太低一直被打断），则会再触发一次高优先级`更新`。
+When the `update` generated by `useDeferredValue` has not been performed after the `timeoutMs` is exceeded (it has been interrupted because the `priority` is too low), a high priority `update` will be triggered again.
 
-## 总结
+## Summarize
 
-除了以上介绍的实现，相信未来`React`还会开发更多基于`Concurrent Mode`的玩法。
+In addition to the implementation described above, I believe that in the future `React` will develop more gameplay based on `Concurrent Mode`.
 
-`Fiber`架构在之前的章节已经学习了。所以，在本章接下来的部分，我们会按照上文的脉络，自底向上，从架构到实现讲解`Concurrent Mode`。
-
-
-
-
-
-
-
+The `Fiber` architecture has been studied in the previous chapters. Therefore, in the next part of this chapter, we will explain Concurrent Mode from the bottom up, from the architecture to the implementation in the context of the above.

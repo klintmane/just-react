@@ -1,61 +1,61 @@
-当我们有了前面知识的铺垫，就很容易理解`this.setState`的工作流程。
+When we have the foundation of the previous knowledge, it is easy to understand the workflow of `this.setState`.
 
-## 流程概览
+## Process overview
 
-可以看到，`this.setState`内会调用`this.updater.enqueueSetState`方法。
+As you can see, the `this.updater.enqueueSetState` method is called in `this.setState`.
 
 ```js
 Component.prototype.setState = function (partialState, callback) {
-  if (!(typeof partialState === 'object' || typeof partialState === 'function' || partialState == null)) {
+  if (!(typeof partialState ==='object' || typeof partialState ==='function' || partialState == null)) {
     {
       throw Error( "setState(...): takes an object of state variables to update or a function which returns an object of state variables." );
     }
   }
-  this.updater.enqueueSetState(this, partialState, callback, 'setState');
+  this.updater.enqueueSetState(this, partialState, callback,'setState');
 };
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react/src/ReactBaseClasses.js#L57)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react/src/ReactBaseClasses.js#L57)
 
-在`enqueueSetState`方法中就是我们熟悉的从`创建update`到`调度update`的流程了。
+In the `enqueueSetState` method, we are familiar with the process from `creating update` to `dispatching update`.
 
 ```js
 enqueueSetState(inst, payload, callback) {
-  // 通过组件实例获取对应fiber
+  // Obtain the corresponding fiber through the component instance
   const fiber = getInstance(inst);
 
   const eventTime = requestEventTime();
   const suspenseConfig = requestCurrentSuspenseConfig();
 
-  // 获取优先级
+  // Get priority
   const lane = requestUpdateLane(fiber, suspenseConfig);
 
-  // 创建update
+  // Create update
   const update = createUpdate(eventTime, lane, suspenseConfig);
 
   update.payload = payload;
 
-  // 赋值回调函数
+  // Assignment callback function
   if (callback !== undefined && callback !== null) {
     update.callback = callback;
   }
 
-  // 将update插入updateQueue
+  // insert update into updateQueue
   enqueueUpdate(fiber, update);
-  // 调度update
+  // schedule update
   scheduleUpdateOnFiber(fiber, lane, eventTime);
 }
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L196)看到`enqueueSetState`代码
+> You can see the `enqueueSetState` code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L196)
 
-这里值得注意的是对于`ClassComponent`，`update.payload`为`this.setState`的第一个传参（即要改变的`state`）。
+It is worth noting here that for `ClassComponent`, `update.payload` is the first parameter of `this.setState` (that is, the `state` to be changed).
 
 ## this.forceUpdate
 
-在`this.updater`上，除了`enqueueSetState`外，还存在`enqueueForceUpdate`，当我们调用`this.forceUpdate`时会调用他。
+On `this.updater`, in addition to `enqueueSetState`, there is also `enqueueForceUpdate`, which will be called when we call `this.forceUpdate`.
 
-可以看到，除了赋值`update.tag = ForceUpdate;`以及没有`payload`外，其他逻辑与`this.setState`一致。
+As you can see, except for the assignment of `update.tag = ForceUpdate;` and no `payload`, the other logic is consistent with `this.setState`.
 
 ```js
 enqueueForceUpdate(inst, callback) {
@@ -66,7 +66,7 @@ enqueueForceUpdate(inst, callback) {
 
     const update = createUpdate(eventTime, lane, suspenseConfig);
 
-    // 赋值tag为ForceUpdate
+    // Assign tag to ForceUpdate
     update.tag = ForceUpdate;
 
     if (callback !== undefined && callback !== null) {
@@ -79,11 +79,11 @@ enqueueForceUpdate(inst, callback) {
 };
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L260)看到`enqueueForceUpdate`代码
+> You can see the `enqueueForceUpdate` code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L260)
 
-那么赋值`update.tag = ForceUpdate;`有何作用呢？
+So what is the effect of assigning `update.tag = ForceUpdate;`?
 
-在判断`ClassComponent`是否需要更新时有两个条件需要满足：
+There are two conditions that need to be met when judging whether `ClassComponent` needs to be updated:
 
 ```js
  const shouldUpdate =
@@ -99,18 +99,18 @@ enqueueForceUpdate(inst, callback) {
   );
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L1137)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L1137)
 
-- checkHasForceUpdateAfterProcessing：内部会判断本次更新的`Update`是否为`ForceUpdate`。即如果本次更新的`Update`中存在`tag`为`ForceUpdate`，则返回`true`。
+-checkHasForceUpdateAfterProcessing: Internally, it will determine whether the updated `Update` is `ForceUpdate`. That is, if there is a `tag` of `ForceUpdate` in the `Update` of this update, it will return `true`.
 
-- checkShouldComponentUpdate：内部会调用`shouldComponentUpdate`方法。以及当该`ClassComponent`为`PureComponent`时会浅比较`state`与`props`。
+-checkShouldComponentUpdate: The `shouldComponentUpdate` method is called internally. And when the `ClassComponent` is `PureComponent`, it will compare `state` with `props`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L294)看到`checkShouldComponentUpdate`代码
+> You can see the `checkShouldComponentUpdate` code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberClassComponent.old.js#L294)
 
-所以，当某次更新含有`tag`为`ForceUpdate`的`Update`，那么当前`ClassComponent`不会受其他`性能优化手段`（`shouldComponentUpdate`|`PureComponent`）影响，一定会更新。
+Therefore, when an update contains `Update` with `tag` as `ForceUpdate`, then the current `ClassComponent` will not be affected by other `performance optimization methods` (`shouldComponentUpdate`|`PureComponent`) and will definitely be updated.
 
-## 总结
+## Summarize
 
-至此，我们学习完了`HostRoot | ClassComponent`所使用的`Update`的更新流程。
+So far, we have finished the update process of `Update` used by `HostRoot | ClassComponent`.
 
-在下一章我们会学习另一种数据结构的`Update` —— 用于`Hooks`的`Update`。
+In the next chapter, we will learn about another data structure of `Update`-`Update` for `Hooks`.

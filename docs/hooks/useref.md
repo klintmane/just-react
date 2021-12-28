@@ -1,42 +1,42 @@
-`ref`是`reference`（引用）的缩写。在`React`中，我们习惯用`ref`保存`DOM`。
+`ref` is short for `reference` (reference). In `React`, we are used to saving `DOM` with `ref`.
 
-事实上，任何需要被"引用"的数据都可以保存在`ref`中，`useRef`的出现将这种思想进一步发扬光大。
+In fact, any data that needs to be "quoted" can be stored in `ref`, and the emergence of `useRef` further promotes this idea.
 
-在[Hooks数据结构一节](./structure.html#memoizedstate)我们讲到：
+In the [Hooks data structure section](./structure.html#memoizedstate) we talked about:
 
-> 对于`useRef(1)`，`memoizedState`保存`{current: 1}`
+> For `useRef(1)`, `memoizedState` saves `{current: 1}`
 
-本节我们会介绍`useRef`的实现，以及`ref`的工作流程。
+In this section, we will introduce the implementation of `useRef` and the workflow of `ref`.
 
-由于`string`类型的`ref`已不推荐使用，所以本节针对`function | {current: any}`类型的`ref`。
+Since the use of `ref` of type `string` is deprecated, this section focuses on `ref` of type `function | {current: any}`.
 
 ## useRef
 
-与其他`Hook`一样，对于`mount`与`update`，`useRef`对应两个不同`dispatcher`。
+Like other `Hook`, for `mount` and `update`, `useRef` corresponds to two different `dispatcher`.
 
 ```js
 function mountRef<T>(initialValue: T): {|current: T|} {
-  // 获取当前useRef hook
+  // Get the current useRef hook
   const hook = mountWorkInProgressHook();
-  // 创建ref
+  // Create ref
   const ref = {current: initialValue};
   hook.memoizedState = ref;
   return ref;
 }
 
 function updateRef<T>(initialValue: T): {|current: T|} {
-  // 获取当前useRef hook
+  // Get the current useRef hook
   const hook = updateWorkInProgressHook();
-  // 返回保存的数据
+  // Return the saved data
   return hook.memoizedState;
 }
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.old.js#L1208-L1221)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.old.js#L1208-L1221)
 
-可见，`useRef`仅仅是返回一个包含`current`属性的对象。
+It can be seen that `useRef` just returns an object containing the `current` property.
 
-为了验证这个观点，我们再看下`React.createRef`方法的实现：
+In order to verify this point of view, let's look at the implementation of the `React.createRef` method:
 
 ```js
 export function createRef(): RefObject {
@@ -47,13 +47,13 @@ export function createRef(): RefObject {
 }
 ```
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react/src/ReactCreateRef.js)看到这段代码
+> You can see this code from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react/src/ReactCreateRef.js)
 
-了解了`ref`的数据结构后，我们再来看看`ref`的工作流程。
+After understanding the data structure of `ref`, let's take a look at the workflow of `ref`.
 
-## ref的工作流程
+## ref's workflow
 
-在`React`中，`HostComponent`、`ClassComponent`、`ForwardRef`可以赋值`ref`属性。
+In `React`, `HostComponent`, `ClassComponent`, and `ForwardRef` can be assigned to the `ref` attribute.
 
 ```js
 // HostComponent
@@ -62,48 +62,48 @@ export function createRef(): RefObject {
 <App ref={cpnRef} />
 ```
 
-其中，`ForwardRef`只是将`ref`作为第二个参数传递下去，不会进入`ref`的工作流程。
+Among them, `ForwardRef` just passes `ref` as the second parameter and will not enter the workflow of `ref`.
 
-所以接下来讨论`ref`的工作流程时会排除`ForwardRef`。
+So when discussing the workflow of `ref`, `ForwardRef` will be excluded.
 
 ```js
-// 对于ForwardRef，secondArg为传递下去的ref
+// For ForwardRef, secondArg is the ref passed down
 let children = Component(props, secondArg);
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.old.js#L415)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.old.js#L415)
 
-我们知道`HostComponent`在`commit阶段`的`mutation阶段`执行`DOM`操作。
+We know that `HostComponent` performs `DOM` operations in the `mutation phase` of the `commit phase`.
 
-所以，对应`ref`的更新也是发生在`mutation阶段`。
+Therefore, the update corresponding to `ref` also occurs in the `mutation phase`.
 
-再进一步，`mutation阶段`执行`DOM`操作的依据为`effectTag`。
+Furthermore, the basis for executing the `DOM` operation in the `mutation stage` is `effectTag`.
 
-所以，对于`HostComponent`、`ClassComponent`如果包含`ref`操作，那么也会赋值相应的`effectTag`。
+Therefore, for `HostComponent` and `ClassComponent`, if the `ref` operation is included, the corresponding `effectTag` will also be assigned.
 
 ```js
 // ...
-export const Placement = /*                    */ 0b0000000000000010;
-export const Update = /*                       */ 0b0000000000000100;
-export const Deletion = /*                     */ 0b0000000000001000;
-export const Ref = /*                          */ 0b0000000010000000;
+export const Placement = /* */ 0b0000000000000010;
+export const Update = /* */ 0b0000000000000100;
+export const Deletion = /* */ 0b0000000000001000;
+export const Ref = /* */ 0b0000000010000000;
 // ...
 ```
 
-> 你可以在[ReactSideEffectTags文件](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js#L24)中看到`ref`对应的`effectTag`
+> You can see the `effectTag` corresponding to `ref` in [ReactSideEffectTags file](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js#`L24)
 
-所以，`ref`的工作流程可以分为两部分：
+Therefore, the workflow of `ref` can be divided into two parts:
 
-- `render阶段`为含有`ref`属性的`fiber`添加`Ref effectTag`
+-`render phase` adds `Ref effectTag` to `fiber` with `ref` attribute
 
-- `commit阶段`为包含`Ref effectTag`的`fiber`执行对应操作
+-The `commit phase` performs the corresponding operation for the `fiber` containing the `Ref effectTag`
 
-## render阶段
+## render stage
 
-在`render阶段`的`beginWork`与`completeWork`中有个同名方法`markRef`用于为含有`ref`属性的`fiber`增加`Ref effectTag`。
+In the `beginWork` and `completeWork` of the `render phase`, there is a method `markRef` with the same name, which is used to add `Ref effectTag` to `fiber` with `ref` attribute.
 
 ```js
-// beginWork的markRef
+// beginWork's markRef
 function markRef(current: Fiber | null, workInProgress: Fiber) {
   const ref = workInProgress.ref;
   if (
@@ -114,43 +114,42 @@ function markRef(current: Fiber | null, workInProgress: Fiber) {
     workInProgress.effectTag |= Ref;
   }
 }
-// completeWork的markRef
+// markRef of completeWork
 function markRef(workInProgress: Fiber) {
   workInProgress.effectTag |= Ref;
 }
 ```
+> You can see the `markRef` of `beginWork`, [Here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L153) see `markRef` of `completeWork`
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.old.js#L693)看到`beginWork`的`markRef`、[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L153)看到`completeWork`的`markRef`
+In `beginWork`, `markRef` is called in the following two places:
 
-在`beginWork`中，如下两处调用了`markRef`：
+-[finishClassComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.old.js#L958) in `updateClassComponent`, corresponding to `ClassComponent`
 
-- `updateClassComponent`内的[finishClassComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.old.js#L958)，对应`ClassComponent`
+Note that `ClassComponent` will call `markRef` even if `shouldComponentUpdate` is `false`
 
-注意`ClassComponent`即使`shouldComponentUpdate`为`false`该组件也会调用`markRef`
+-[updateHostComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.old.js#L1156), corresponding to `HostComponent`
 
-- [updateHostComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.old.js#L1156)，对应`HostComponent`
+In `completeWork`, `markRef` is called in the following two places:
 
-在`completeWork`中，如下两处调用了`markRef`：
+-[HostComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L728) type in `completeWork`
 
-- `completeWork`中的[HostComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L728)类型
+-[ScopeComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L1278) type in `completeWork`
 
-- `completeWork`中的[ScopeComponent](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.old.js#L1278)类型
+> `ScopeComponent` is a test feature used to manage `focus`, see [PR](https://github.com/facebook/react/pull/16587)
 
-> `ScopeComponent`是一种用于管理`focus`的测试特性，详见[PR](https://github.com/facebook/react/pull/16587)
+Summarize the conditions that the `component` corresponding to the `fiber` is assigned the value of `Ref effectTag` to meet:
 
-总结下`组件`对应`fiber`被赋值`Ref effectTag`需要满足的条件：
+-The type of `fiber` is `HostComponent`, `ClassComponent`, and `ScopeComponent` (we will not discuss this case)
 
-- `fiber`类型为`HostComponent`、`ClassComponent`、`ScopeComponent`（这种情况我们不讨论）
+-For `mount`, `workInProgress.ref !== null`, that is, there is a `ref` attribute
 
-- 对于`mount`，`workInProgress.ref !== null`，即存在`ref`属性
-
-- 对于`update`，`current.ref !== workInProgress.ref`，即`ref`属性改变
-
+-For `update`, `current.ref !== workInProgress.ref`, that is, `ref` property changes
 
 
-## commit阶段
 
-在`commit阶段`的`mutation阶段`中，对于`ref`属性改变的情况，需要先移除之前的`ref`。
+## commit stage
+
+In the `mutation phase` of the `commit phase`, for the change of the attribute of `ref`, the previous `ref` needs to be removed first.
 
 ```js
 function commitMutationEffects(root: FiberRoot, renderPriorityLevel) {
@@ -162,7 +161,7 @@ function commitMutationEffects(root: FiberRoot, renderPriorityLevel) {
     if (effectTag & Ref) {
       const current = nextEffect.alternate;
       if (current !== null) {
-        // 移除之前的ref
+        // remove the previous ref
         commitDetachRef(current);
       }
     }
@@ -171,36 +170,36 @@ function commitMutationEffects(root: FiberRoot, renderPriorityLevel) {
   // ...
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L2342)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.old.js#L2342)
 
 ```js
 function commitDetachRef(current: Fiber) {
   const currentRef = current.ref;
   if (currentRef !== null) {
-    if (typeof currentRef === 'function') {
-      // function类型ref，调用他，传参为null
+    if (typeof currentRef ==='function') {
+      // function type ref, call him, pass parameter is null
       currentRef(null);
     } else {
-      // 对象类型ref，current赋值为null
+      // Object type ref, current is assigned to null
       currentRef.current = null;
     }
   }
 }
 ```
 
-接下来，在`mutation阶段`，对于`Deletion effectTag`的`fiber`（对应需要删除的`DOM节点`），需要递归他的子树，对子孙`fiber`的`ref`执行类似`commitDetachRef`的操作。
+Next, in the `mutation phase`, for the `fiber` of `Deletion effectTag` (corresponding to the `DOM node` that needs to be deleted), it is necessary to recurse its subtree, and execute similar `commitDetachRef` to the `ref` of the descendants of `fiber` Operation.
 
-在[mutation阶段一节](renderer/mutation.html#commitmutationeffects)我们讲到
+In the [mutation stage section](renderer/mutation.html#commitmutationeffects) we talked about
 
-> 对于`Deletion effectTag`的`fiber`，会执行`commitDeletion`。
+> For `fiber` of `Deletion effectTag`, `commitDeletion` will be executed.
 
-在`commitDeletion`——`unmountHostComponents`——`commitUnmount`——`ClassComponent | HostComponent`类型`case`中调用的`safelyDetachRef`方法负责执行类似`commitDetachRef`的操作。
+The `safelyDetachRef` method called in `commitDeletion`-`unmountHostComponents`-`commitUnmount`-`ClassComponent | HostComponent` type `case` is responsible for performing operations similar to `commitDetachRef`.
 
 ```js
 function safelyDetachRef(current: Fiber) {
   const ref = current.ref;
   if (ref !== null) {
-    if (typeof ref === 'function') {
+    if (typeof ref ==='function') {
       try {
         ref(null);
       } catch (refError) {
@@ -213,17 +212,17 @@ function safelyDetachRef(current: Fiber) {
 }
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L183)看到这段代码
+> You can see this code in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L183)
 
-接下来进入`ref`的赋值阶段。我们在[Layout阶段一节](../renderer/layout.html#commitlayouteffects)讲到
+Next enter the assignment phase of `ref`. We talked about in [Layout stage section](../renderer/layout.html#commitlayouteffects)
 
-> `commitLayoutEffect`会执行`commitAttachRef`（赋值`ref`）
+> `commitLayoutEffect` will execute `commitAttachRef` (assignment of `ref`)
 
 ```js
 function commitAttachRef(finishedWork: Fiber) {
   const ref = finishedWork.ref;
   if (ref !== null) {
-    // 获取ref属性对应的Component实例
+    // Get the Component instance corresponding to the ref attribute
     const instance = finishedWork.stateNode;
     let instanceToUse;
     switch (finishedWork.tag) {
@@ -234,8 +233,8 @@ function commitAttachRef(finishedWork: Fiber) {
         instanceToUse = instance;
     }
 
-    // 赋值ref
-    if (typeof ref === 'function') {
+    // Assign ref
+    if (typeof ref ==='function') {
       ref(instanceToUse);
     } else {
       ref.current = instanceToUse;
@@ -244,12 +243,12 @@ function commitAttachRef(finishedWork: Fiber) {
 }
 ```
 
-至此，`ref`的工作流程完毕。
+At this point, the workflow of `ref` is complete.
 
-## 总结
+## Summarize
 
-本节我们学习了`ref`的工作流程。
+In this section we have learned the workflow of `ref`.
 
-- 对于`FunctionComponent`，`useRef`负责创建并返回对应的`ref`。
+-For `FunctionComponent`, `useRef` is responsible for creating and returning the corresponding `ref`.
 
-- 对于赋值了`ref`属性的`HostComponent`与`ClassComponent`，会在`render阶段`经历赋值`Ref effectTag`，在`commit阶段`执行对应`ref`操作。
+-For the `HostComponent` and `ClassComponent` assigned with the `ref` attribute, they will undergo the assignment of `Ref effectTag` in the `render phase`, and execute the corresponding `ref` operation in the `commit phase`.

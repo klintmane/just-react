@@ -1,16 +1,15 @@
-追求效率的同学可以考虑[视频课程](https://ke.segmentfault.com/course/1650000023864436)。
+Students who pursue efficiency can consider [video course](https://ke.segmentfault.com/course/1650000023864436).
 
-特点：
+Features:
 
-- 与本书一样采用“自顶向下”的讲解方式
+-Use the "top-down" method of explanation as in this book
 
-- 更详尽，我和你一起单步调试源码
+-More detailed, let me step through the source code with you
 
-- 每一节只关注一个重点，控制每节课时长，买了课从来看不完？不存在的
+-Only focus on one key point in each section, control the duration of each lesson, and never finish after buying a lesson? nonexistent
 
-- 精心设计的Demo、实战练习
+-Well-designed Demo and practical exercises
 
-部分评价：
+Partial evaluation:
 
 <img :src="$withBase('/img/appra.png')" alt="30sec">
-

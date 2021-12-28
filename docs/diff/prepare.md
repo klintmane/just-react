@@ -1,115 +1,115 @@
-::: warning 本章为选读章节
+::: warning This chapter is an optional chapter
 
-是否学习该章对后续章节的学习没有影响。
-
-:::
-
-在[beginWork一节](../process/beginWork.html#reconcilechildren)我们提到
-
-> 对于`update`的组件，他会将当前组件与该组件在上次更新时对应的Fiber节点比较（也就是俗称的Diff算法），将比较的结果生成新Fiber节点。
-
-这一章我们讲解`Diff算法`的实现。
-
-> 你可以从[这里](https://zh-hans.reactjs.org/docs/reconciliation.html#the-diffing-algorithm)看到`Diff算法`的介绍。
-
-::: warning 为了防止概念混淆，这里再强调下
-
-一个`DOM节点`在某一时刻最多会有4个节点和他相关。
-
-1. `current Fiber`。如果该`DOM节点`已在页面中，`current Fiber`代表该`DOM节点`对应的`Fiber节点`。
-
-2. `workInProgress Fiber`。如果该`DOM节点`将在本次更新中渲染到页面中，`workInProgress Fiber`代表该`DOM节点`对应的`Fiber节点`。
-
-3. `DOM节点`本身。
-
-4. `JSX对象`。即`ClassComponent`的`render`方法的返回结果，或`FunctionComponent`的调用结果。`JSX对象`中包含描述`DOM节点`的信息。
-
-`Diff算法`的本质是对比1和4，生成2。
+Whether to study this chapter has no effect on the study of subsequent chapters.
 
 :::
 
+In the [beginWork section](../process/beginWork.html#reconcilechildren) we mentioned
 
-## Diff的瓶颈以及React如何应对
+> For the `update` component, he will compare the current component with the corresponding Fiber node of the component when it was last updated (also known as the Diff algorithm), and generate a new Fiber node from the result of the comparison.
 
-由于`Diff`操作本身也会带来性能损耗，React文档中提到，即使在最前沿的算法中，将前后两棵树完全比对的算法的复杂程度为 O(n 3 )，其中`n`是树中元素的数量。
+In this chapter we explain the implementation of `Diff Algorithm`.
 
-如果在`React`中使用了该算法，那么展示1000个元素所需要执行的计算量将在十亿的量级范围。这个开销实在是太过高昂。
+> You can see the introduction of `Diff algorithm` from [here](https://zh-hans.reactjs.org/docs/reconciliation.html#the-diffing-algorithm).
 
-为了降低算法复杂度，`React`的`diff`会预设三个限制：
+::: warning In order to prevent the concept from being confused, I will emphasize it again here
 
-1. 只对同级元素进行`Diff`。如果一个`DOM节点`在前后两次更新中跨越了层级，那么`React`不会尝试复用他。
+A `DOM node` can have up to 4 nodes related to it at a certain time.
 
-2. 两个不同类型的元素会产生出不同的树。如果元素由`div`变为`p`，React会销毁`div`及其子孙节点，并新建`p`及其子孙节点。
+1. `current Fiber`. If the `DOM node` is already in the page, `current Fiber` represents the `Fiber node` corresponding to the `DOM node`.
 
-3. 开发者可以通过 `key prop`来暗示哪些子元素在不同的渲染下能保持稳定。考虑如下例子：
+2. `workInProgress Fiber`. If the `DOM node` will be rendered to the page in this update, `workInProgress Fiber` represents the `Fiber node` corresponding to the `DOM node`.
+
+3. The `DOM node` itself.
+
+4. `JSX Object`. That is, the return result of the `render` method of `ClassComponent`, or the call result of `FunctionComponent`. The `JSX object` contains information describing the `DOM node`.
+
+The essence of the `Diff algorithm` is to compare 1 and 4 to generate 2.
+
+:::
+
+
+## The bottleneck of Diff and how React responds
+
+Since the `Diff` operation itself will also bring performance loss, the React document mentions that even in the most cutting-edge algorithm, the complexity of the algorithm that completely compares the two trees before and after is O(n 3 ), where `n `Is the number of elements in the tree.
+
+If this algorithm is used in `React`, the amount of calculation required to display 1000 elements will be in the order of billions. This overhead is too high.
+
+In order to reduce the complexity of the algorithm, the `diff` of `React` will preset three restrictions:
+
+1. Only perform `Diff` on the same level elements. If a `DOM node` crosses the hierarchy in two updates, then `React` will not try to reuse it.
+
+2. Two different types of elements will produce different trees. If the element changes from `div` to `p`, React will destroy `div` and its descendants, and create new `p` and its descendants.
+
+3. Developers can use `key prop` to hint which child elements can remain stable under different renderings. Consider the following example:
 
 ```jsx
-// 更新前
+// Before update
 <div>
   <p key="ka">ka</p>
   <h3 key="song">song</h3>
 </div>
 
-// 更新后
+// Updated
 <div>
   <h3 key="song">song</h3>
   <p key="ka">ka</p>
 </div>
 
 ```
-如果没有`key`，`React`会认为`div`的第一个子节点由`p`变为`h3`，第二个子节点由`h3`变为`p`。这符合限制2的设定，会销毁并新建。
+If there is no `key`, `React` will think that the first child node of `div` changes from `p` to `h3`, and the second child node changes from `h3` to `p`. This complies with the setting of Limit 2 and will be destroyed and newly created.
 
-但是当我们用`key`指明了节点前后对应关系后，`React`知道`key === "ka"`的`p`在更新后还存在，所以`DOM节点`可以复用，只是需要交换下顺序。
+But when we use `key` to indicate the correspondence between the nodes before and after, `React` knows that the `p` of `key === "ka"` still exists after the update, so the `DOM node` can be reused, but it needs to be exchanged The next order.
 
-这就是`React`为了应对算法性能瓶颈做出的三条限制。
+These are the three restrictions made by React in order to cope with the algorithm performance bottleneck.
 
-## Diff是如何实现的
+## How Diff is implemented
 
-我们从`Diff`的入口函数`reconcileChildFibers`出发，该函数会根据`newChild`（即`JSX对象`）类型调用不同的处理函数。
+We start from the entry function `reconcileChildFibers` of `Diff`, which will call different processing functions according to the type of `newChild` (ie, `JSX object`).
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1280)看到`reconcileChildFibers`的源码。
+> You can see the source code of `reconcileChildFibers` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1280).
 
 ```js
-// 根据newChild类型选择不同diff函数处理
+// Choose different diff function processing according to newChild type
 function reconcileChildFibers(
   returnFiber: Fiber,
   currentFirstChild: Fiber | null,
   newChild: any,
 ): Fiber | null {
 
-  const isObject = typeof newChild === 'object' && newChild !== null;
+  const isObject = typeof newChild ==='object' && newChild !== null;
 
   if (isObject) {
-    // object类型，可能是 REACT_ELEMENT_TYPE 或 REACT_PORTAL_TYPE
+    // object type, may be REACT_ELEMENT_TYPE or REACT_PORTAL_TYPE
     switch (newChild.$$typeof) {
       case REACT_ELEMENT_TYPE:
-        // 调用 reconcileSingleElement 处理
-      // // ...省略其他case
+        // call reconcileSingleElement to process
+      // // ... omit other cases
     }
   }
 
-  if (typeof newChild === 'string' || typeof newChild === 'number') {
-    // 调用 reconcileSingleTextNode 处理
-    // ...省略
+  if (typeof newChild ==='string' || typeof newChild ==='number') {
+    // call reconcileSingleTextNode to process
+    // ... omitted
   }
 
   if (isArray(newChild)) {
-    // 调用 reconcileChildrenArray 处理
-    // ...省略
+    // call reconcileChildrenArray to process
+    // ... omitted
   }
 
-  // 一些其他情况调用处理函数
-  // ...省略
+  // Some other situations call the processing function
+  // ... omitted
 
-  // 以上都没有命中，删除节点
+  // None of the above hits, delete the node
   return deleteRemainingChildren(returnFiber, currentFirstChild);
 }
 ```
 
-我们可以从同级的节点数量将Diff分为两类：
+We can divide Diff into two categories from the number of nodes at the same level:
 
-1. 当`newChild`类型为`object`、`number`、`string`，代表同级只有一个节点
+1. When the `newChild` type is `object`, `number`, `string`, it means there is only one node at the same level
 
-2. 当`newChild`类型为`Array`，同级有多个节点
+2. When the type of `newChild` is `Array`, there are multiple nodes at the same level
 
-在接下来两节我们会分别讨论这两类节点的`Diff`。
+In the next two sections we will discuss the `Diff` of these two types of nodes respectively.

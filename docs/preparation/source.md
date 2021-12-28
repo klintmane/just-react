@@ -1,96 +1,95 @@
-了解了源码的文件目录，这一节我们看看如何调试源码。
+Knowing the file directory of the source code, in this section we look at how to debug the source code.
 
-即使版本号相同（当前最新版为`17.0.0 RC`），但是`facebook/react`项目`master`分支的代码和我们使用`create-react-app`创建的项目`node_modules`下的`react`项目代码还是有些区别。
+Even though the version number is the same (the current latest version is `17.0.0 RC`), the code of the `master` branch of the `facebook/react` project is the same as the `react` under the project `node_modules` that we created with `create-react-app` `The project code is still somewhat different.
 
-因为`React`的新代码都是直接提交到`master`分支，而`create-react-app`内的`react`使用的是稳定版的包。
+Because the new code of `React` is directly submitted to the `master` branch, and the `react` in `create-react-app` uses the stable version of the package.
 
-为了始终使用最新版`React`教学，我们调试源码遵循以下步骤：
+In order to always use the latest version of `React` for teaching, we debug the source code and follow the steps below:
 
-1. 从`facebook/react`项目`master`分支拉取最新源码
-2. 基于最新源码构建`react`、`scheduler`、`react-dom`三个包
-3. 通过`create-react-app`创建测试项目，并使用步骤2创建的包作为项目依赖的包
+1. Pull the latest source code from the `master` branch of the `facebook/react` project
+2. Build three packages of `react`, `scheduler`, and `react-dom` based on the latest source code
+3. Create a test project by `create-react-app`, and use the package created in step 2 as the package that the project depends on
 
-## 拉取源码
+## Pull the source code
 
-拉取`facebook/react`代码
+Pull the `facebook/react` code
 
 ```sh
-# 拉取代码
+# Pull code
 git clone https://github.com/facebook/react.git
 
-# 如果拉取速度很慢，可以考虑如下2个方案：
+# If the pull speed is very slow, you can consider the following 2 solutions:
 
-# 1. 使用cnpm代理
+# 1. Use cnpm proxy
 git clone https://github.com.cnpmjs.org/facebook/react
 
-# 2. 使用码云的镜像（一天会与react同步一次）
+# 2. Use code cloud mirroring (synchronize with react once a day)
 git clone https://gitee.com/mirrors/react.git
 
 ```
 
-安装依赖
+Installation dependencies
 
 ```sh
-# 切入到react源码所在文件夹
+# Cut into the folder where the react source code is located
 cd react
 
-# 安装依赖
+# Installation dependencies
 yarn
 ```
 
-打包`react`、`scheduler`、`react-dom`三个包为dev环境可以使用的`cjs`包。
+The three packages `react`, `scheduler`, and `react-dom` are packaged as `cjs` packages that can be used in the dev environment.
 
-> 我们的步骤只包含具体做法，对每一步更详细的介绍可以参考`React`文档[源码贡献章节](https://zh-hans.reactjs.org/docs/how-to-contribute.html#development-workflow)
+> Our steps only contain specific methods. For a more detailed introduction to each step, please refer to the `React` document [Source code contribution chapter](https://zh-hans.reactjs.org/docs/how-to-contribute.html# development-workflow)
 
 ```sh
 
-# 执行打包命令
+# Execute packaging commands
 yarn build react/index,react/jsx,react-dom/index,scheduler --type=NODE
 
 
 ```
 
-:::details 网络不好的同学看这里
+:::details Check here for students with bad internet
 
-如果网络不好，执行`yarn`命令无法完成依赖安装，或者执行`yarn build`无法完成打包，可以使用我打好的包。
+If the network is not good, the dependency installation cannot be completed by executing the `yarn` command, or the packaging cannot be completed by executing the `yarn build`, you can use the package I prepared.
 
-版本为`17.0.0-alpha.0`
+The version is `17.0.0-alpha.0`
 
-[地址](https://gitee.com/kasong/react)
+[Address](https://gitee.com/kasong/react)
 
 :::
 
-现在源码目录`build/node_modules`下会生成最新代码的包。我们为`react`、`react-dom`创建`yarn link`。
+Now the package with the latest code will be generated under the source directory `build/node_modules`. We create `yarn link` for `react` and `react-dom`.
 
-> 通过`yarn link`可以改变项目中依赖包的目录指向
+> Through `yarn link`, you can change the directory point of the dependent package in the project
 ```sh
 cd build/node_modules/react
-# 申明react指向
+# Declare that react points to
 yarn link
 cd build/node_modules/react-dom
-# 申明react-dom指向
+# Declare that react-dom points to
 yarn link
 ```
 
-## 创建项目
+## Create project
 
-接下来我们通过`create-react-app`在其他地方创建新项目。这里我们随意起名，比如“a-react-demo”。
+Next, we create new projects elsewhere via `create-react-app`. Here we name it arbitrarily, such as "a-react-demo".
 
 ```sh
 npx create-react-app a-react-demo
 ```
 
-在新项目中，将`react`与`react-dom`2个包指向`facebook/react`下我们刚才生成的包。
+In the new project, point the two packages of `react` and `react-dom` to the package we just generated under `facebook/react`.
 
 ```sh
-# 将项目内的react react-dom指向之前申明的包
+# Point react react-dom in the project to the previously declared package
 yarn link react react-dom
 ```
 
-现在试试在`react/build/node_modules/react-dom/cjs/react-dom.development.js`中随意打印些东西。
+Now try to print something in `react/build/node_modules/react-dom/cjs/react-dom.development.js`.
 
-在`a-react-demo`项目下执行`yarn start`。现在浏览器控制台已经可以打印出我们输入的东西了。
+Execute `yarn start` under the `a-react-demo` project. Now the browser console can print out what we entered.
 
 
-通过以上方法，我们的运行时代码就和`React`最新代码一致了。
-
+Through the above method, our runtime code is consistent with the latest code of `React`.

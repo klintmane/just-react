@@ -1,39 +1,39 @@
-在深入源码前，让我们先建立`更新机制`的`心智模型`。
+Before diving into the source code, let us first establish the `mental model` of the `update mechanism`.
 
-在后面两节讲解源码时，我们会将代码与`心智模型`联系上，方便你更好理解。
+When explaining the source code in the next two sections, we will associate the code with the `mental model` so that you can better understand it.
 
-## 同步更新的React
+## Synchronously updated React
 
-我们可以将`更新机制`类比`代码版本控制`。
+We can compare `update mechanism` to `code version control`.
 
-在没有`代码版本控制`前，我们在代码中逐步叠加功能。一切看起来井然有序，直到我们遇到了一个紧急线上bug（红色节点）。
+Before `code version control`, we gradually superimposed functions in the code. Everything looked orderly until we encountered an emergency online bug (red node).
 
-<img :src="$withBase('/img/git1.png')" alt="流程1">
+<img :src="$withBase('/img/git1.png')" alt="process1">
 
-为了修复这个bug，我们需要首先将之前的代码提交。
+In order to fix this bug, we need to submit the previous code first.
 
-在`React`中，所有通过`ReactDOM.render`创建的应用（其他创建应用的方式参考[ReactDOM.render一节](./reactdom.html#react的其他入口函数)）都是通过类似的方式`更新状态`。
+In `React`, all applications created by `ReactDOM.render` (for other ways to create applications refer to [ReactDOM.render section](./reactdom.html#react's other entry functions)) are in a similar way `Update status`.
 
-即没有`优先级`概念，`高优更新`（红色节点）需要排在其他`更新`后面执行。
+That is, there is no concept of `priority`, and `high-quality update` (red node) needs to be executed after other `updates`.
 
-## 并发更新的React
+## React with concurrent updates
 
-当有了`代码版本控制`，有紧急线上bug需要修复时，我们暂存当前分支的修改，在`master分支`修复bug并紧急上线。
+When there is `code version control` and there is an urgent online bug that needs to be fixed, we temporarily store the modification of the current branch, fix the bug in the `master branch` and go online urgently.
 
-<img :src="$withBase('/img/git2.png')" alt="流程2">
+<img :src="$withBase('/img/git2.png')" alt="process2">
 
-bug修复上线后通过`git rebase`命令和`开发分支`连接上。`开发分支`基于`修复bug的版本`继续开发。
+After the bug fix is ​​online, use the `git rebase` command to connect to the `development branch`. `Development branch` Continue development based on `bug-fixed version`.
 
-<img :src="$withBase('/img/git3.png')" alt="流程3">
+<img :src="$withBase('/img/git3.png')" alt="process3">
 
-在`React`中，通过`ReactDOM.createBlockingRoot`和`ReactDOM.createRoot`创建的应用会采用`并发`的方式`更新状态`。
+In `React`, applications created by `ReactDOM.createBlockingRoot` and `ReactDOM.createRoot` will use the method of `concurrent` to `update state`.
 
-`高优更新`（红色节点）中断正在进行中的`低优更新`（蓝色节点），先完成`render - commit流程`。
+`High-quality update` (red node) interrupts the ongoing `low-quality update` (blue node), first complete the `render-commit process`.
 
-待`高优更新`完成后，`低优更新`基于`高优更新`的结果`重新更新`。
+After the completion of `high-quality update`, `low-quality update` will re-update based on the result of `high-quality update`.
 
-接下来两节我们会从源码角度讲解这套`并发更新`是如何实现的。
+In the next two sections, we will explain how this set of `concurrent updates` is implemented from the perspective of source code.
 
-## 参考资料
+## Reference
 
-[`外网` `英文` React Core Team Dan介绍React未来发展方向](https://www.youtube.com/watch?v=v6iR3Zk4oDY)
+[`Extranet` `English` React Core Team Dan introduces the future development direction of React](https://www.youtube.com/watch?v=v6iR3Zk4oDY)

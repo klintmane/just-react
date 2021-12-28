@@ -1,12 +1,12 @@
-`Redux`的作者`Dan`加入`React`核心团队后的一大贡献就是“将`Redux`的理念带入`React`”。
+One of the contributions of `Redux` author `Dan` after joining the `React` core team is to "bring the concept of `Redux` into `React`".
 
-这里面最显而易见的影响莫过于`useState`与`useReducer`这两个`Hook`。本质来说，`useState`只是预置了`reducer`的`useReducer`。
+The most obvious influence here is the two `Hook` of `useState` and `useReducer`. Essentially, `useState` is just a `useReducer` with `reducer` preset.
 
-本节我们来学习`useState`与`useReducer`的实现。
+In this section we will learn the implementation of `useState` and `useReducer`.
 
-## 流程概览
+## Process overview
 
-我们将这两个`Hook`的工作流程分为`声明阶段`和`调用阶段`，对于：
+We divide the work flow of these two `Hook` into `declaration phase` and `calling phase`, for:
 
 ```js
 function App() {
@@ -16,26 +16,26 @@ function App() {
   
   return (
     <div>
-      <button onClick={() => dispatch({type: 'a'})}>{state.a}</button>  
-      <button onClick={() => updateNum(num => num + 1)}>{num}</button>  
+      <button onClick={() => dispatch({type:'a'})}>{state.a}</button>
+      <button onClick={() => updateNum(num => num + 1)}>{num}</button>
     </div>
   )
 }
 ```
 
-`声明阶段`即`App`调用时，会依次执行`useReducer`与`useState`方法。
+The `declaration phase`, that is, when the `App` is called, the `useReducer` and `useState` methods will be executed in sequence.
 
-`调用阶段`即点击按钮后，`dispatch`或`updateNum`被调用时。
+The `call phase` is when the `dispatch` or `updateNum` is called after the button is clicked.
 
-## 声明阶段
+## Declaration stage
 
-当`FunctionComponent`进入`render阶段`的`beginWork`时，会调用[renderWithHooks](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L1419)方法。
+When `FunctionComponent` enters `beginWork` of `render stage`, it will call [renderWithHooks](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberBeginWork.new.js #L1419) Method.
 
-该方法内部会执行`FunctionComponent`对应函数（即`fiber.type`）。
+This method will execute the function corresponding to `FunctionComponent` (ie `fiber.type`).
 
-> 你可以在[这里](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L415)看到这段逻辑
+> You can see this logic in [here](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L415)
 
-对于这两个`Hook`，他们的源码如下：
+For these two `Hook`, their source code is as follows:
 
 ```js
 function useState(initialState) {
@@ -48,26 +48,26 @@ function useReducer(reducer, initialArg, init) {
 }
 ```
 
-正如上一节[dispatcher](./structure.html#dispatcher)所说，在不同场景下，同一个`Hook`会调用不同处理函数。
+As mentioned in the previous section [dispatcher](./structure.html#dispatcher), in different scenarios, the same `Hook` will call different processing functions.
 
-我们分别讲解`mount`与`update`两个场景。
+We respectively explain the two scenes of `mount` and `update`.
 
-### mount时
+### When mount
 
-`mount`时，`useReducer`会调用[mountReducer](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L638)，`useState`会调用[mountState](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1143)。
+When `mount`, `useReducer` will call [mountReducer](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L638), `useState` Will call [mountState](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1143).
 
-我们来简单对比这这两个方法：
+Let's briefly compare these two methods:
 
 ```js
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
-  // 创建并返回当前的hook
+  // Create and return the current hook
   const hook = mountWorkInProgressHook();
 
-  // ...赋值初始state
+  // ... the initial state of the assignment
 
-  // 创建queue
+  // Create queue
   const queue = (hook.queue = {
     pending: null,
     dispatch: null,
@@ -75,7 +75,7 @@ function mountState<S>(
     lastRenderedState: (initialState: any),
   });
 
-  // ...创建dispatch
+  // ... create dispatch
   return [hook.memoizedState, dispatch];
 }
 
@@ -84,12 +84,12 @@ function mountReducer<S, I, A>(
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
-  // 创建并返回当前的hook
+  // Create and return the current hook
   const hook = mountWorkInProgressHook();
 
-  // ...赋值初始state
+  // ... the initial state of the assignment
 
-  // 创建queue
+  // Create queue
   const queue = (hook.queue = {
     pending: null,
     dispatch: null,
@@ -97,47 +97,47 @@ function mountReducer<S, I, A>(
     lastRenderedState: (initialState: any),
   });
 
-  // ...创建dispatch
+  // ... create dispatch
   return [hook.memoizedState, dispatch];
 }
 ```
 
-其中`mountWorkInProgressHook`方法会创建并返回对应`hook`，对应`极简Hooks实现`中`useState`方法的`isMount`逻辑部分。
+The `mountWorkInProgressHook` method will create and return the corresponding `hook`, which corresponds to the `isMount` logic part of the `useState` method in the `Minimal Hooks implementation`.
 
-可以看到，`mount`时这两个`Hook`的唯一区别为`queue`参数的`lastRenderedReducer`字段。
+As you can see, the only difference between these two `Hooks' when `mount` is the `lastRenderedReducer` field of the `queue` parameter.
 
-`queue`的数据结构如下：
+The data structure of `queue` is as follows:
 
 ```js
 const queue = (hook.queue = {
-  // 与极简实现中的同名字段意义相同，保存update对象
+  // Has the same meaning as the field of the same name in the minimalist implementation, save the update object
   pending: null,
-  // 保存dispatchAction.bind()的值
+  // Save the value of dispatchAction.bind()
   dispatch: null,
-  // 上一次render时使用的reducer
+  // The reducer used in the last render
   lastRenderedReducer: reducer,
-  // 上一次render时的state
+  // The state of the last render
   lastRenderedState: (initialState: any),
 });
 ```
 
-其中，`useReducer`的`lastRenderedReducer`为传入的`reducer`参数。`useState`的`lastRenderedReducer`为`basicStateReducer`。
+Among them, the `lastRenderedReducer` of `useReducer` is the `reducer` parameter passed in. The `lastRenderedReducer` of `useState` is `basicStateReducer`.
 
-`basicStateReducer`方法如下：
+The `basicStateReducer` method is as follows:
 
 ```js
 function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
-  return typeof action === 'function' ? action(state) : action;
+  return typeof action ==='function'? action(state): action;
 }
 ```
 
-可见，`useState`即`reducer`参数为`basicStateReducer`的`useReducer`。
+It can be seen that `useState` is the `useReducer` whose parameter of `reducer` is `basicStateReducer`.
 
-`mount`时的整体运行逻辑与`极简实现`的`isMount`逻辑类似，你可以对照着看。
+The overall operation logic of `mount` is similar to the logic of `isMount` of `Minimal implementation`, you can compare it.
 
-### update时
+### When updating
 
-如果说`mount`时这两者还有区别，那`update`时，`useReducer`与`useState`调用的则是同一个函数[updateReducer](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L665)。
+If there is a difference between the two in `mount`, then in `update`, `useReducer` and `useState` call the same function [updateReducer](https://github.com/acdlite/react/blob /1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L665).
 
 ```js
 function updateReducer<S, I, A>(
@@ -145,30 +145,30 @@ function updateReducer<S, I, A>(
   initialArg: I,
   init?: I => S,
 ): [S, Dispatch<A>] {
-  // 获取当前hook
+  // Get the current hook
   const hook = updateWorkInProgressHook();
   const queue = hook.queue;
   
   queue.lastRenderedReducer = reducer;
 
-  // ...同update与updateQueue类似的更新逻辑
+  // ... update logic similar to update and updateQueue
 
   const dispatch: Dispatch<A> = (queue.dispatch: any);
   return [hook.memoizedState, dispatch];
 }
 ```
 
-整个流程可以概括为一句话：
+The whole process can be summarized in one sentence:
 
-> 找到对应的`hook`，根据`update`计算该`hook`的新`state`并返回。
+> Find the corresponding `hook`, calculate the new `state` of the `hook` according to the `update` and return.
 
-`mount`时获取当前`hook`使用的是`mountWorkInProgressHook`，而`update`时使用的是`updateWorkInProgressHook`，这里的原因是： 
+To get the current `hook` when `mount` uses `mountWorkInProgressHook`, and when `update` uses `updateWorkInProgressHook`, the reason here is:
 
-- `mount`时可以确定是调用`ReactDOM.render`或相关初始化`API`产生的`更新`，只会执行一次。
+-When `mount`, it can be determined that the `update` generated by calling `ReactDOM.render` or related initialization `API` will only be executed once.
 
-- `update`可能是在事件回调或副作用中触发的`更新`或者是`render阶段`触发的`更新`，为了避免组件无限循环`更新`，后者需要区别对待。
+-`update` may be an `update` triggered in event callbacks or side effects or an `update` triggered by the `render phase`. In order to avoid the infinite loop of the component `update`, the latter needs to be treated differently.
 
-举个`render阶段`触发的`更新`的例子：
+An example of `update` triggered by `render phase`:
 
 ```js
 function App() {
@@ -177,29 +177,29 @@ function App() {
   updateNum(num + 1);
 
   return (
-    <button onClick={() => updateNum(num => num + 1)}>{num}</button>  
+    <button onClick={() => updateNum(num => num + 1)}>{num}</button>
   )
 }
 ```
 
-在这个例子中，`App`调用时，代表已经进入`render阶段`执行`renderWithHooks`。
+In this example, when `App` is called, it means that it has entered the `render phase` and executes `renderWithHooks`.
 
-在`App`内部，调用`updateNum`会触发一次`更新`。如果不对这种情况下触发的更新作出限制，那么这次`更新`会开启一次新的`render阶段`，最终会无限循环更新。
+Inside `App`, calling `updateNum` will trigger an `update`. If there is no restriction on the update triggered in this case, then this `update` will start a new `render phase`, and eventually it will update in an endless loop.
 
-基于这个原因，`React`用一个标记变量`didScheduleRenderPhaseUpdate`判断是否是`render阶段`触发的更新。
+For this reason, `React` uses a tag variable `didScheduleRenderPhaseUpdate` to determine whether it is an update triggered by the `render phase`.
 
-`updateWorkInProgressHook`方法也会区分这两种情况来获取对应`hook`。
+The `updateWorkInProgressHook` method will also distinguish between these two cases to obtain the corresponding `hook`.
 
-获取对应`hook`，接下来会根据`hook`中保存的`state`计算新的`state`，这个步骤同[Update一节](../state/update.html)一致。
+Get the corresponding `hook`, and then calculate the new `state` according to the `state` saved in the `hook`. This step is the same as [Update section](../state/update.html).
 
-## 调用阶段
+## Invoke phase
 
-调用阶段会执行[dispatchAction](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1662)，此时该`FunctionComponent`对应的`fiber`以及`hook.queue`已经通过调用`bind`方法预先作为参数传入。
+[DispatchAction](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1662) will be executed during the call phase, and the `FunctionComponent` corresponding to ` Fiber` and `hook.queue` have been passed in as parameters in advance by calling the `bind` method.
 
 ```js
 function dispatchAction(fiber, queue, action) {
 
-  // ...创建update
+  // ... create update
   var update = {
     eventTime: eventTime,
     lane: lane,
@@ -208,18 +208,18 @@ function dispatchAction(fiber, queue, action) {
     eagerReducer: null,
     eagerState: null,
     next: null
-  }; 
+  };
 
-  // ...将update加入queue.pending
+  // ...add update to queue.pending
   
   var alternate = fiber.alternate;
 
   if (fiber === currentlyRenderingFiber$1 || alternate !== null && alternate === currentlyRenderingFiber$1) {
-    // render阶段触发的更新
+    // Update triggered by the render phase
     didScheduleRenderPhaseUpdateDuringThisPass = didScheduleRenderPhaseUpdate = true;
   } else {
     if (fiber.lanes === NoLanes && (alternate === null || alternate.lanes === NoLanes)) {
-      // ...fiber的updateQueue为空，优化路径
+      // ...fiber's updateQueue is empty, optimize the path
     }
 
     scheduleUpdateOnFiber(fiber, lane, eventTime);
@@ -227,45 +227,45 @@ function dispatchAction(fiber, queue, action) {
 }
 ```
 
-整个过程可以概括为：
+The whole process can be summarized as:
 
-> 创建`update`，将`update`加入`queue.pending`中，并开启调度。
+> Create `update`, add `update` to `queue.pending`, and start scheduling.
 
-这里值得注意的是`if...else...`逻辑，其中：
+What is worth noting here is the logic of `if...else...`, where:
 
 ```js
 if (fiber === currentlyRenderingFiber$1 || alternate !== null && alternate === currentlyRenderingFiber$1)
 ```
 
-`currentlyRenderingFiber`即`workInProgress`，`workInProgress`存在代表当前处于`render阶段`。
+`CurrentlyRenderingFiber` means `workInProgress`, the existence of `workInProgress` means that it is currently in the `render phase`.
 
-触发`更新`时通过`bind`预先保存的`fiber`与`workInProgress`全等，代表本次`更新`发生于`FunctionComponent`对应`fiber`的`render阶段`。
+When the `update` is triggered, the `fiber` and `workInProgress` pre-saved by `bind` are equal, which means that this `update` occurs in the `render phase` of `FunctionComponent` corresponding to `fiber`.
 
-所以这是一个`render阶段`触发的`更新`，需要标记变量`didScheduleRenderPhaseUpdate`，后续单独处理。
+So this is an `update` triggered by the `render phase`, and the variable `didScheduleRenderPhaseUpdate` needs to be marked and processed separately.
 
-再来关注：
+Pay attention again:
 
 ```js
 if (fiber.lanes === NoLanes && (alternate === null || alternate.lanes === NoLanes))
 ```
 
-`fiber.lanes`保存`fiber`上存在的`update`的`优先级`。
+`fiber.lanes` saves the `priority` of `update` existing on `fiber`.
 
-`fiber.lanes === NoLanes`意味着`fiber`上不存在`update`。
+`fiber.lanes === NoLanes` means that there is no `update` on `fiber`.
 
-我们已经知道，通过`update`计算`state`发生在`声明阶段`，这是因为该`hook`上可能存在多个不同`优先级`的`update`，最终`state`的值由多个`update`共同决定。
+We already know that the calculation of `state` by `update` occurs in the `declaration phase`. This is because there may be multiple `update` with different `priorities` on the `hook`, and the final value of `state` consists of multiple `update` is jointly decided.
 
-但是当`fiber`上不存在`update`，则`调用阶段`创建的`update`为该`hook`上第一个`update`，在`声明阶段`计算`state`时也只依赖于该`update`，完全不需要进入`声明阶段`再计算`state`。
+But when `update` does not exist on `fiber`, the `update` created by the `calling phase` is the first `update` on the `hook`, and it only depends on this when calculating the `state` in the `declaration phase` `update`, there is no need to enter the `declaration phase` to calculate the `state` at all.
 
-这样做的好处是：如果计算出的`state`与该`hook`之前保存的`state`一致，那么完全不需要开启一次调度。即使计算出的`state`与该`hook`之前保存的`state`不一致，在`声明阶段`也可以直接使用`调用阶段`已经计算出的`state`。
+The advantage of this is: if the calculated `state` is consistent with the `state` saved before the `hook`, then there is no need to start a scheduling at all. Even if the calculated `state` is inconsistent with the `state` saved before the `hook`, the `state` that has been calculated in the `calling phase` can be used directly in the `declaration phase`.
 
-> 你可以在[这里](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1727)看到这段提前计算`state`的逻辑
+> You can see this piece of pre-calculated `state` in [here](https://github.com/acdlite/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberHooks.new.js#L1727) logic
 
-## 小Tip
+## Little Tip
 
-我们通常认为，`useReducer(reducer, initialState)`的传参为初始化参数，在以后的调用中都不可变。
+We usually think that the passed parameters of `useReducer(reducer, initialState)` are initialization parameters, which are immutable in subsequent calls.
 
-但是在`updateReducer`方法中，可以看到`lastRenderedReducer`在每次调用时都会重新赋值。
+But in the `updateReducer` method, you can see that `lastRenderedReducer` will be reassigned every time it is called.
 
 ```js
 function updateReducer(reducer, initialArg, init) {
@@ -276,12 +276,12 @@ function updateReducer(reducer, initialArg, init) {
   // ...
 ```
 
-也就是说，`reducer`参数是随时可变的。
+In other words, the `reducer` parameter is variable at any time.
 
-::: details reducer可变Demo
-每秒`useReducer`使用的`reducer`会改变一次
+::: details reducer variable Demo
+The reducer used by `useReducer` will change once every second
 
-点击按钮后会随时间不同会出现`+1`或`-1`的效果
+After clicking the button, the effect of `+1` or `-1` will appear over time
 
-[关注公众号](../me.html)，后台回复**582**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **582** to get the online Demo address
 :::

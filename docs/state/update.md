@@ -1,36 +1,36 @@
-通过本章第一节学习，我们知道`状态更新`流程开始后首先会`创建Update对象`。
+After studying in the first section of this chapter, we know that the `status update` process will first `create an Update object` after the start of the process.
 
-本节我们学习`Update`的结构与工作流程。
+In this section, we will learn the structure and workflow of `Update`.
 
-> 你可以将`Update`类比`心智模型`中的一次`commit`。
+> You can compare `Update` to a `commit` in the `mental model`.
 
-## Update的分类
+## Update classification
 
-我们先来了解`Update`的结构。
+Let's first understand the structure of `Update`.
 
-首先，我们将可以触发更新的方法所隶属的组件分类：
+First, we classify the components to which the method that can trigger the update belongs:
 
-- ReactDOM.render —— HostRoot
+-ReactDOM.render —— HostRoot
 
-- this.setState —— ClassComponent
+-this.setState —— ClassComponent
 
-- this.forceUpdate —— ClassComponent
+-this.forceUpdate —— ClassComponent
 
-- useState —— FunctionComponent
+-useState —— FunctionComponent
 
-- useReducer —— FunctionComponent
+-useReducer —— FunctionComponent
 
-可以看到，一共三种组件（`HostRoot` | `ClassComponent` | `FunctionComponent`）可以触发更新。
+As you can see, a total of three components (`HostRoot` | `ClassComponent` | `FunctionComponent`) can trigger an update.
 
-由于不同类型组件工作方式不同，所以存在两种不同结构的`Update`，其中`ClassComponent`与`HostRoot`共用一套`Update`结构，`FunctionComponent`单独使用一种`Update`结构。
+Because different types of components work differently, there are two different structures of `Update`, among which `ClassComponent` and `HostRoot` share a set of `Update` structure, and `FunctionComponent` uses a single `Update` structure.
 
-虽然他们的结构不同，但是他们工作机制与工作流程大体相同。在本节我们介绍前一种`Update`，`FunctionComponent`对应的`Update`在`Hooks`章节介绍。
+Although their structure is different, their working mechanism and workflow are roughly the same. In this section, we introduce the former type of `Update`, the `Update` corresponding to `FunctionComponent` is introduced in the `Hooks` chapter.
 
-## Update的结构
+## Update structure
 
-`ClassComponent`与`HostRoot`（即`rootFiber.tag`对应类型）共用同一种`Update结构`。
+`ClassComponent` and `HostRoot` (the corresponding type of `rootFiber.tag`) share the same `Update structure`.
 
-对应的结构如下：
+The corresponding structure is as follows:
 
 ```js
 const update: Update<*> = {
@@ -45,45 +45,45 @@ const update: Update<*> = {
 };
 ```
 
-> `Update`由`createUpdate`方法返回，你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.old.js#L189)看到`createUpdate`的源码
+> `Update` is returned by the `createUpdate` method, you can download it from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.old.js#L189) See the source code of `createUpdate`
 
-字段意义如下：
+The meanings of the fields are as follows:
 
-- eventTime：任务时间，通过`performance.now()`获取的毫秒数。由于该字段在未来会重构，当前我们不需要理解他。
+-eventTime: task time, the number of milliseconds obtained by `performance.now()`. Since this field will be refactored in the future, we don't need to understand it currently.
 
-- lane：优先级相关字段。当前还不需要掌握他，只需要知道不同`Update`优先级可能是不同的。
+-lane: Priority related fields. There is no need to master him yet, just know that different `Update` priorities may be different.
 
-> 你可以将`lane`类比`心智模型`中`需求的紧急程度`。
+> You can compare `lane` to `needs' urgency` in `mental model`.
 
-- suspenseConfig：`Suspense`相关，暂不关注。
+-suspenseConfig: `Suspense` related, don't pay attention to it for now.
 
-- tag：更新的类型，包括`UpdateState` | `ReplaceState` | `ForceUpdate` | `CaptureUpdate`。
+-tag: the type of update, including `UpdateState` | `ReplaceState` | `ForceUpdate` | `CaptureUpdate`.
 
-- payload：更新挂载的数据，不同类型组件挂载的数据不同。对于`ClassComponent`，`payload`为`this.setState`的第一个传参。对于`HostRoot`，`payload`为`ReactDOM.render`的第一个传参。
+-payload: update the mounted data, the data mounted by different types of components are different. For `ClassComponent`, `payload` is the first parameter of `this.setState`. For `HostRoot`, `payload` is the first parameter of `ReactDOM.render`.
 
-- callback：更新的回调函数。即在[commit 阶段的 layout 子阶段一节](../renderer/layout.html#commitlayouteffectonfiber)中提到的`回调函数`。
+-callback: the updated callback function. That is, the `callback function` mentioned in the [layout sub-phase section of the commit phase](../renderer/layout.html#commitlayouteffectonfiber).
 
-- next：与其他`Update`连接形成链表。
+-next: Connect with other `Update` to form a linked list.
 
-## Update与Fiber的联系
+## Update contact with Fiber
 
-我们发现，`Update`存在一个连接其他`Update`形成链表的字段`next`。联系`React`中另一种以链表形式组成的结构`Fiber`，他们之间有什么关联么？
+We found that `Update` has a field `next` that connects other `Update`s to form a linked list. Contact `Fiber`, another structure in the form of a linked list in `React`. Is there any connection between them?
 
-答案是肯定的。
+The answer is yes.
 
-从[双缓存机制一节](../process/doubleBuffer.html)我们知道，`Fiber节点`组成`Fiber树`，页面中最多同时存在两棵`Fiber树`：
+From the [Double Buffering Mechanism](../process/doubleBuffer.html) we know that `Fiber nodes` form a `Fiber tree`, and there are at most two `Fiber trees` in the page at the same time:
 
-- 代表当前页面状态的`current Fiber树`
+-The `current Fiber tree` representing the state of the current page
 
-- 代表正在`render阶段`的`workInProgress Fiber树`
+-Represents the `workInProgress Fiber tree` in the `render phase`
 
-类似`Fiber节点`组成`Fiber树`，`Fiber节点`上的多个`Update`会组成链表并被包含在`fiber.updateQueue`中。
+Similar to the `Fiber node` forming the `Fiber tree`, multiple `Update` on the `Fiber node` will form a linked list and be included in the `fiber.updateQueue`.
 
-::: warning 什么情况下一个Fiber节点会存在多个Update？
+::: warning Under what circumstances will there be multiple Updates on a Fiber node?
 
-你可能疑惑为什么一个`Fiber节点`会存在多个`Update`。这其实是很常见的情况。
+You may be wondering why there are multiple `Update`s for one `Fiber node`. This is actually a very common situation.
 
-在这里介绍一种最简单的情况：
+Here is the simplest case:
 
 ```js
 onClick() {
@@ -97,25 +97,25 @@ onClick() {
 }
 ```
 
-在一个`ClassComponent`中触发`this.onClick`方法，方法内部调用了两次`this.setState`。这会在该`fiber`中产生两个`Update`。
+The `this.onClick` method is triggered in a `ClassComponent`, and `this.setState` is called twice inside the method. This will generate two `Update`s in the `fiber`.
 
 :::
 
-`Fiber节点`最多同时存在两个`updateQueue`：
+The `Fiber node` can have at most two `updateQueue` at the same time:
 
-- `current fiber`保存的`updateQueue`即`current updateQueue`
+-`updateQueue` saved by `current fiber` is `current updateQueue`
 
-- `workInProgress fiber`保存的`updateQueue`即`workInProgress updateQueue`
+-`updateQueue` saved by `workInProgress fiber` is `workInProgress updateQueue`
 
-在`commit阶段`完成页面渲染后，`workInProgress Fiber树`变为`current Fiber树`，`workInProgress Fiber树`内`Fiber节点`的`updateQueue`就变成`current updateQueue`。
+After the page rendering is completed in the `commit phase`, the `workInProgress Fiber tree` becomes the `current Fiber tree`, and the `updateQueue` of the `Fiber node` in the `workInProgress Fiber tree` becomes `current updateQueue`.
 
 ## updateQueue
 
-`updateQueue`有三种类型，其中针对`HostComponent`的类型我们在[completeWork一节](../process/completeWork.html#update时)介绍过。
+There are three types of `updateQueue`, of which the type of `HostComponent` is introduced in [completeWork section](../process/completeWork.html#update time).
 
-剩下两种类型和`Update`的两种类型对应。
+The remaining two types correspond to the two types of `Update`.
 
-`ClassComponent`与`HostRoot`使用的`UpdateQueue`结构如下：
+The structure of `UpdateQueue` used by `ClassComponent` and `HostRoot` is as follows:
 
 ```js
 const queue: UpdateQueue<State> = {
@@ -128,36 +128,35 @@ const queue: UpdateQueue<State> = {
     effects: null,
   };
 ```
+> `UpdateQueue` is returned by the `initializeUpdateQueue` method, you can download it from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.new.js#L157) See the source code of `initializeUpdateQueue`
 
-> `UpdateQueue`由`initializeUpdateQueue`方法返回，你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.new.js#L157)看到`initializeUpdateQueue`的源码
+The field descriptions are as follows:
 
-字段说明如下：
+-baseState: The `state` of the `Fiber node` before this update, and `Update` calculates the updated `state` based on the `state`.
 
-- baseState：本次更新前该`Fiber节点`的`state`，`Update`基于该`state`计算更新后的`state`。
+> You can compare the `baseState` with the `master branch` in the `mental model`.
 
-> 你可以将`baseState`类比`心智模型`中的`master分支`。
+-`firstBaseUpdate` and `lastBaseUpdate`: The `Update` saved by the `Fiber node` before this update. It exists in the form of a linked list, the head of the linked list is `firstBaseUpdate`, and the end of the linked list is `lastBaseUpdate`. The reason why the `Update` exists in the `Fiber node` before the update is generated is because some `Update` has a lower priority and was skipped when the `state` was calculated by the `Update` in the last `render phase`.
 
-- `firstBaseUpdate`与`lastBaseUpdate`：本次更新前该`Fiber节点`已保存的`Update`。以链表形式存在，链表头为`firstBaseUpdate`，链表尾为`lastBaseUpdate`。之所以在更新产生前该`Fiber节点`内就存在`Update`，是由于某些`Update`优先级较低所以在上次`render阶段`由`Update`计算`state`时被跳过。
+> You can compare `baseUpdate` to `commit` (node ​​D) based on the execution of `git rebase` in `mental model`.
 
-> 你可以将`baseUpdate`类比`心智模型`中执行`git rebase`基于的`commit`（节点D）。
+-`shared.pending`: When an update is triggered, the generated `Update` will be saved in `shared.pending` to form a unidirectional circular linked list. When the `state` is calculated by `Update`, this ring will be cut and connected to the back of `lastBaseUpdate`.
 
-- `shared.pending`：触发更新时，产生的`Update`会保存在`shared.pending`中形成单向环状链表。当由`Update`计算`state`时这个环会被剪开并连接在`lastBaseUpdate`后面。
+> You can compare `shared.pending` with the `commit` (node ​​ABC) that needs to be submitted this time in the `mental model`.
 
-> 你可以将`shared.pending`类比`心智模型`中本次需要提交的`commit`（节点ABC）。
-
-- effects：数组。保存`update.callback !== null`的`Update`。
-
+-effects: array. Save the `Update` of `update.callback !== null`.
 
 
-## 例子
 
-`updateQueue`相关代码逻辑涉及到大量链表操作，比较难懂。在此我们举例对`updateQueue`的工作流程讲解下。
+## example
 
-假设有一个`fiber`刚经历`commit阶段`完成渲染。
+The code logic related to `updateQueue` involves a large number of linked list operations, which is difficult to understand. Here we give an example to explain the workflow of `updateQueue`.
 
-该`fiber`上有两个由于优先级过低所以在上次的`render阶段`并没有处理的`Update`。他们会成为下次更新的`baseUpdate`。
+Suppose a `fiber` has just gone through the `commit phase` to finish rendering.
 
-我们称其为`u1`和`u2`，其中`u1.next === u2`。
+On this `fiber`, there are two `Update` that were not processed in the last `render stage` because the priority is too low. They will become the `baseUpdate` for the next update.
+
+We call them `u1` and `u2`, where `u1.next === u2`.
 
 ```js
 fiber.updateQueue.firstBaseUpdate === u1;
@@ -165,32 +164,32 @@ fiber.updateQueue.lastBaseUpdate === u2;
 u1.next === u2;
 ```
 
-我们用`-->`表示链表的指向：
+We use `-->` to indicate the direction of the linked list:
 
 ```js
 fiber.updateQueue.baseUpdate: u1 --> u2
 ```
 
-现在我们在`fiber`上触发两次状态更新，这会先后产生两个新的`Update`，我们称为`u3`和`u4`。
+Now we trigger two status updates on `fiber`, which will generate two new `Update` successively, which we call `u3` and `u4`.
 
-每个 `update` 都会通过 `enqueueUpdate` 方法插入到 `updateQueue` 队列上
+Each `update` will be inserted into the `updateQueue` queue through the `enqueueUpdate` method
 
-当插入`u3`后：
+After inserting `u3`:
 
 ```js
 fiber.updateQueue.shared.pending === u3;
 u3.next === u3;
 ```
 
-`shared.pending`的环状链表，用图表示为：
+The circular linked list of `shared.pending` is represented as:
 
 ```js
-fiber.updateQueue.shared.pending:   u3 ─────┐ 
-                                     ^      |                                    
+fiber.updateQueue.shared.pending: u3 ─────┐
+                                     ^ |
                                      └──────┘
 ```
 
-接着插入`u4`之后：
+Then after inserting `u4`:
 
 ```js
 fiber.updateQueue.shared.pending === u4;
@@ -198,32 +197,32 @@ u4.next === u3;
 u3.next === u4;
 ```
 
-`shared.pending`是环状链表，用图表示为：
+`shared.pending` is a circular linked list, represented by a diagram:
 
 ```js
-fiber.updateQueue.shared.pending:   u4 ──> u3
-                                     ^      |                                    
+fiber.updateQueue.shared.pending: u4 ──> u3
+                                     ^ |
                                      └──────┘
 ```
 
-`shared.pending` 会保证始终指向最后一个插入的`update`，你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.new.js#L208)看到`enqueueUpdate`的源码
+`shared.pending` will always point to the last inserted `update`, you can find it here [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue. new.js#L208) See the source code of `enqueueUpdate`
 
-更新调度完成后进入`render阶段`。
+After the update schedule is completed, it enters the `render phase`.
 
-此时`shared.pending`的环被剪开并连接在`updateQueue.lastBaseUpdate`后面：
+At this time, the loop of `shared.pending` is cut and connected to the back of `updateQueue.lastBaseUpdate`:
 
 ```js
 fiber.updateQueue.baseUpdate: u1 --> u2 --> u3 --> u4
 ```
 
-接下来遍历`updateQueue.baseUpdate`链表，以`fiber.updateQueue.baseState`为`初始state`，依次与遍历到的每个`Update`计算并产生新的`state`（该操作类比`Array.prototype.reduce`）。
+Next traverse the linked list of `updateQueue.baseUpdate`, with `fiber.updateQueue.baseState` as the `initial state`, and calculate and generate a new `state` with each `Update` traversed in turn (this operation is analogous to `Array.prototype .reduce`).
 
-在遍历时如果有优先级低的`Update`会被跳过。
+During traversal, if there is a low priority `Update`, it will be skipped.
 
-当遍历完成后获得的`state`，就是该`Fiber节点`在本次更新的`state`（源码中叫做`memoizedState`）。
+The `state` obtained after the traversal is completed is the `state` of the `Fiber node` in this update (called `memoizedState` in the source code).
 
-> `render阶段`的`Update操作`由`processUpdateQueue`完成，你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.new.js#L405)看到`processUpdateQueue`的源码
+> The `Update operation` of the `render stage` is completed by `processUpdateQueue`, you can download it from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactUpdateQueue.new .js#L405) See the source code of `processUpdateQueue`
 
-`state`的变化在`render阶段`产生与上次更新不同的`JSX`对象，通过`Diff算法`产生`effectTag`，在`commit阶段`渲染在页面上。
+The change of the `state` produces a different `JSX` object in the `render phase` from the last update, generates an `effectTag` through the `Diff algorithm`, and renders it on the page in the `commit phase`.
 
-渲染完成后`workInProgress Fiber树`变为`current Fiber树`，整个更新流程结束。
+After the rendering is completed, the `workInProgress Fiber tree` becomes the `current Fiber tree`, and the entire update process ends.

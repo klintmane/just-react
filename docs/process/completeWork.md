@@ -1,14 +1,14 @@
-在[流程概览一节](/process/reconciler)我们了解组件在`render阶段`会经历`beginWork`与`completeWork`。
+In the [process overview section](/process/reconciler) we understand that the component will go through the `beginWork` and `completeWork` in the `render phase`.
 
-上一节我们讲解了组件执行`beginWork`后会创建`子Fiber节点`，节点上可能存在`effectTag`。
+In the previous section, we explained that after the component executes `beginWork`, a `child Fiber node` will be created, and there may be an `effectTag` on the node.
 
-这一节让我们看看`completeWork`会做什么工作。
+In this section, let us see what work `completeWork` will do.
 
-你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L673)看到`completeWork`方法定义。
+You can see the definition of `completeWork` method from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L673).
 
-## 流程概览
+## Process overview
 
-类似`beginWork`，`completeWork`也是针对不同`fiber.tag`调用不同的处理逻辑。
+Similar to `beginWork`, `completeWork` also calls different processing logic for different `fiber.tag`.
 
 ```js
 function completeWork(
@@ -31,28 +31,28 @@ function completeWork(
     case MemoComponent:
       return null;
     case ClassComponent: {
-      // ...省略
+      // ... omitted
       return null;
     }
     case HostRoot: {
-      // ...省略
+      // ... omitted
       updateHostContainer(workInProgress);
       return null;
     }
     case HostComponent: {
-      // ...省略
+      // ... omitted
       return null;
     }
-  // ...省略
+  // ... omitted
 ```
 
-我们重点关注页面渲染所必须的`HostComponent`（即原生`DOM组件`对应的`Fiber节点`），其他类型`Fiber`的处理留在具体功能实现时讲解。
+We focus on the `HostComponent` (that is, the `Fiber node` corresponding to the native `DOM component`) necessary for page rendering, and the processing of other types of `Fiber` will be explained when the specific function is implemented.
 
-## 处理HostComponent
+## Process HostComponent
 
-和`beginWork`一样，我们根据`current === null ?`判断是`mount`还是`update`。
+Like `beginWork`, we judge whether it is `mount` or `update` based on `current === null ?`.
 
-同时针对`HostComponent`，判断`update`时我们还需要考虑`workInProgress.stateNode != null ?`（即该`Fiber节点`是否存在对应的`DOM节点`）
+At the same time for `HostComponent`, when judging `update`, we also need to consider `workInProgress.stateNode != null?` (that is, whether the `Fiber node` has a corresponding `DOM node`)
 
 ```js
 case HostComponent: {
@@ -61,30 +61,30 @@ case HostComponent: {
   const type = workInProgress.type;
 
   if (current !== null && workInProgress.stateNode != null) {
-    // update的情况
-    // ...省略
+    // update situation
+    // ... omitted
   } else {
-    // mount的情况
-    // ...省略
+    // mount situation
+    // ... omitted
   }
   return null;
 }
 ```
 
-## update时
+## update time
 
-当`update`时，`Fiber节点`已经存在对应`DOM节点`，所以不需要生成`DOM节点`。需要做的主要是处理`props`，比如：
+When `update`, the `Fiber node` already has a corresponding `DOM node`, so there is no need to generate a `DOM node`. The main thing that needs to be done is to deal with `props`, such as:
 
-- `onClick`、`onChange`等回调函数的注册
-- 处理`style prop`
-- 处理`DANGEROUSLY_SET_INNER_HTML prop`
-- 处理`children prop`
+-Registration of callback functions such as `onClick` and `onChange`
+-Handling `style prop`
+-Handling `DANGEROUSLY_SET_INNER_HTML prop`
+-Handling `children prop`
 
-我们去掉一些当前不需要关注的功能（比如`ref`）。可以看到最主要的逻辑是调用`updateHostComponent`方法。
+We remove some functions that currently don't need attention (such as `ref`). You can see that the main logic is to call the `updateHostComponent` method.
 
 ```js
 if (current !== null && workInProgress.stateNode != null) {
-  // update的情况
+  // update situation
   updateHostComponent(
     current,
     workInProgress,
@@ -95,42 +95,42 @@ if (current !== null && workInProgress.stateNode != null) {
 }
 ```
 
-你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L225)看到`updateHostComponent`方法定义。
+You can see the definition of `updateHostComponent` method from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L225).
 
-在`updateHostComponent`内部，被处理完的`props`会被赋值给`workInProgress.updateQueue`，并最终会在`commit阶段`被渲染在页面上。
+Inside `updateHostComponent`, the processed `props` will be assigned to `workInProgress.updateQueue`, and finally will be rendered on the page in the `commit phase`.
 
 ```ts
 workInProgress.updateQueue = (updatePayload: any);
 ```
 
-其中`updatePayload`为数组形式，他的偶数索引的值为变化的`prop key`，奇数索引的值为变化的`prop value`。
+Among them, `updatePayload` is in the form of an array, the value of its even index is the changed `prop key`, and the value of the odd index is the changed `prop value`.
 
-> 具体渲染过程见[mutation阶段一节](../renderer/mutation.html#hostcomponent-mutation)
+> For the specific rendering process, see [mutation stage section](../renderer/mutation.html#hostcomponent-mutation)
 
-::: details updatePayload属性 Demo
+::: details updatePayload attribute Demo
 
-`updateHostComponent`方法内打印了`Fiber节点`对应的`type`与`updatePayload`。
+The `type` and `updatePayload` corresponding to the `Fiber node` are printed in the `updateHostComponent` method.
 
-你可以直观的感受`updatePayload`的数据结构
+You can intuitively feel the data structure of `updatePayload`
 
-[关注公众号](../me.html)，后台回复**431**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **431** to get the online Demo address
 :::
 
-## mount时
+## When mount
 
-同样，我们省略了不相关的逻辑。可以看到，`mount`时的主要逻辑包括三个：
+Likewise, we have omitted irrelevant logic. As you can see, the main logic of `mount` includes three:
 
-- 为`Fiber节点`生成对应的`DOM节点`
-- 将子孙`DOM节点`插入刚生成的`DOM节点`中
-- 与`update`逻辑中的`updateHostComponent`类似的处理`props`的过程
+-Generate the corresponding `DOM node` for `Fiber node`
+-Insert the descendant `DOM node` into the newly generated `DOM node`
+-The process of processing `props` similar to `updateHostComponent` in `update` logic
 
 ```js
-// mount的情况
+// mount situation
 
-// ...省略服务端渲染相关逻辑
+// ...omit server-side rendering related logic
 
 const currentHostContext = getHostContext();
-// 为fiber创建对应DOM节点
+// Create the corresponding DOM node for the fiber
 const instance = createInstance(
     type,
     newProps,
@@ -138,12 +138,12 @@ const instance = createInstance(
     currentHostContext,
     workInProgress,
   );
-// 将子孙DOM节点插入刚生成的DOM节点中
+// Insert the descendant DOM node into the newly generated DOM node
 appendAllChildren(instance, workInProgress, false, false);
-// DOM节点赋值给fiber.stateNode
+// DOM node is assigned to fiber.stateNode
 workInProgress.stateNode = instance;
 
-// 与update逻辑中的updateHostComponent类似的处理props的过程
+// Process props similar to updateHostComponent in update logic
 if (
   finalizeInitialChildren(
     instance,
@@ -157,49 +157,49 @@ if (
 }
 ```
 
-还记得[上一节](./beginWork.html#effecttag)我们讲到：`mount`时只会在`rootFiber`存在`Placement effectTag`。那么`commit阶段`是如何通过一次插入`DOM`操作（对应一个`Placement effectTag`）将整棵`DOM树`插入页面的呢？
+Remember that [previous section](./beginWork.html#effecttag) we said: When `mount`, only `Placement effectTag` exists in `rootFiber`. So how does the `commit phase` insert the entire `DOM tree` into the page through one insertion of the `DOM` operation (corresponding to a `Placement effectTag`)?
 
-原因就在于`completeWork`中的`appendAllChildren`方法。
+The reason lies in the `appendAllChildren` method in `completeWork`.
 
-由于`completeWork`属于“归”阶段调用的函数，每次调用`appendAllChildren`时都会将已生成的子孙`DOM节点`插入当前生成的`DOM节点`下。那么当“归”到`rootFiber`时，我们已经有一个构建好的离屏`DOM树`。
+Since `completeWork` belongs to the function called in the "return" phase, every time `appendAllChildren` is called, the generated descendant `DOM node` will be inserted under the currently generated `DOM node`. Then when "return" to `rootFiber`, we already have a built off-screen `DOM tree`.
 
 ## effectList
 
-至此`render阶段`的绝大部分工作就完成了。
+So far, most of the work of the `render phase` is completed.
 
-还有一个问题：作为`DOM`操作的依据，`commit阶段`需要找到所有有`effectTag`的`Fiber节点`并依次执行`effectTag`对应操作。难道需要在`commit阶段`再遍历一次`Fiber树`寻找`effectTag !== null`的`Fiber节点`么？
+There is another problem: as the basis of the `DOM` operation, the `commit phase` needs to find all `Fiber nodes` with `effectTag` and execute the corresponding operations of `effectTag` in turn. Is it necessary to traverse the `Fiber tree` again in the `commit phase` to find the `Fiber node` of `effectTag !== null`?
 
-这显然是很低效的。
+This is obviously very inefficient.
 
-为了解决这个问题，在`completeWork`的上层函数`completeUnitOfWork`中，每个执行完`completeWork`且存在`effectTag`的`Fiber节点`会被保存在一条被称为`effectList`的单向链表中。
+In order to solve this problem, in the upper function `completeUnitOfWork` of `completeWork`, each `Fiber node` that has completed `completeWork` and has an `effectTag` will be saved in a singly linked list called `effectList` .
 
-`effectList`中第一个`Fiber节点`保存在`fiber.firstEffect`，最后一个元素保存在`fiber.lastEffect`。
+The first `Fiber node` in `effectList` is stored in `fiber.firstEffect`, and the last element is stored in `fiber.lastEffect`.
 
-类似`appendAllChildren`，在“归”阶段，所有有`effectTag`的`Fiber节点`都会被追加在`effectList`中，最终形成一条以`rootFiber.firstEffect`为起点的单向链表。
+Similar to `appendAllChildren`, in the "return" phase, all `Fiber nodes` with `effectTag` will be appended to `effectList`, and finally a singly linked list starting from `rootFiber.firstEffect` is formed.
 
 ```js
-                       nextEffect         nextEffect
+                       nextEffect nextEffect
 rootFiber.firstEffect -----------> fiber -----------> fiber
 ```
 
-这样，在`commit阶段`只需要遍历`effectList`就能执行所有`effect`了。
+In this way, you only need to traverse the `effectList` in the `commit phase` to execute all the `effects.
 
-你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1744)看到这段代码逻辑。
+You can see this code logic [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1744).
 
-借用`React`团队成员**Dan Abramov**的话：`effectList`相较于`Fiber树`，就像圣诞树上挂的那一串彩灯。
+To borrow the words of `React` team member **Dan Abramov**: Compared with `Fiber Tree`, `effectList` is like the string of colorful lights hanging on a Christmas tree.
 
-## 流程结尾
+## End of process
 
-至此，`render阶段`全部工作完成。在`performSyncWorkOnRoot`函数中`fiberRootNode`被传递给`commitRoot`方法，开启`commit阶段`工作流程。
+At this point, all the work of the `render phase` is completed. In the `performSyncWorkOnRoot` function, the `fiberRootNode` is passed to the `commitRoot` method to start the `commit phase` workflow.
 
 ```js
 commitRoot(root);
 ```
 
-代码见[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1107)。
+See the code [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1107).
 
-## 参考资料
+## Reference
 
-`completeWork`流程图
+`completeWork` flowchart
 
-<img :src="$withBase('/img/completeWork.png')" alt="completeWork流程图">
+<img :src="$withBase('/img/completeWork.png')" alt="completeWork flowchart">

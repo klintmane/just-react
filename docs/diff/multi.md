@@ -1,5 +1,4 @@
-
-上一节我们介绍了单一节点的`Diff`，现在考虑我们有一个`FunctionComponent`：
+In the previous section we introduced `Diff` with a single node, now consider that we have a `FunctionComponent`:
 
 ```jsx
 function List () {
@@ -13,7 +12,7 @@ function List () {
   )
 }
 ```
-他的返回值`JSX对象`的`children`属性不是单一节点，而是包含四个对象的数组
+The `children` property of his return value `JSX object` is not a single node, but an array containing four objects
 
 ```js
 {
@@ -32,396 +31,396 @@ function List () {
 }
 ```
 
-这种情况下，`reconcileChildFibers`的`newChild`参数类型为`Array`，在`reconcileChildFibers`函数内部对应如下情况：
+In this case, the parameter type of `newChild` of `reconcileChildFibers` is `Array`, which corresponds to the following situations in the `reconcileChildFibers` function:
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1352)看到这段源码逻辑
+> You can see this source logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1352)
 
 ```js
   if (isArray(newChild)) {
-    // 调用 reconcileChildrenArray 处理
-    // ...省略
+    // call reconcileChildrenArray to process
+    // ... omitted
   }
 ```
 
-这一节我们来看看，如何处理同级多个节点的`Diff`。
+In this section, let's take a look at how to deal with `Diff` of multiple nodes at the same level.
 
-## 概览
+## Overview
 
-首先归纳下我们需要处理的情况：
+First, summarize the situation we need to deal with:
 
-我们以**之前**代表更新前的`JSX对象`，**之后**代表更新后的`JSX对象`
+We use **before** to represent the `JSX object` before the update, and **after** to represent the `JSX object` after the update
 
-### 情况1：节点更新
+### Case 1: Node update
 
 ```jsx
-// 之前
+// Before
 <ul>
   <li key="0" className="before">0<li>
   <li key="1">1<li>
 </ul>
 
-// 之后 情况1 —— 节点属性变化
+// After case 1-node attribute changes
 <ul>
   <li key="0" className="after">0<li>
   <li key="1">1<li>
 </ul>
 
-// 之后 情况2 —— 节点类型更新
+// After case 2-node type update
 <ul>
   <div key="0">0</div>
   <li key="1">1<li>
 </ul>
 ```
 
-### 情况2：节点新增或减少
+### Case 2: New or reduced nodes
 
 ```jsx
-// 之前
+// Before
 <ul>
   <li key="0">0<li>
   <li key="1">1<li>
 </ul>
 
-// 之后 情况1 —— 新增节点
+// After case 1-new node
 <ul>
   <li key="0">0<li>
   <li key="1">1<li>
   <li key="2">2<li>
 </ul>
 
-// 之后 情况2 —— 删除节点
+// After case 2-delete node
 <ul>
   <li key="1">1<li>
 </ul>
 ```
 
-### 情况3：节点位置变化
+### Case 3: Node location changes
 
 ```jsx
-// 之前
+// Before
 <ul>
   <li key="0">0<li>
   <li key="1">1<li>
 </ul>
 
-// 之后
+// after
 <ul>
   <li key="1">1<li>
   <li key="0">0<li>
 </ul>
 ```
 
-同级多个节点的`Diff`，一定属于以上三种情况中的一种或多种。
+The `Diff` of multiple nodes at the same level must belong to one or more of the above three situations.
 
-## Diff的思路
+## Diff's ideas
 
-该如何设计算法呢？如果让我设计一个`Diff算法`，我首先想到的方案是：
+How to design an algorithm? If I were to design a `Diff algorithm`, the first solution I thought of was:
 
-1. 判断当前节点的更新属于哪种情况
-2. 如果是`新增`，执行新增逻辑
-3. 如果是`删除`，执行删除逻辑
-4. 如果是`更新`，执行更新逻辑
+1. Determine what kind of situation the current node update belongs to
+2. If it is `new`, execute the new logic
+3. If it is `Delete`, execute the delete logic
+4. If it is `update`, execute the update logic
 
-按这个方案，其实有个隐含的前提——**不同操作的优先级是相同的**
+According to this scheme, there is actually an implicit premise-**The priority of different operations is the same**
 
-但是`React团队`发现，在日常开发中，相较于`新增`和`删除`，`更新`组件发生的频率更高。所以`Diff`会优先判断当前节点是否属于`更新`。
+However, the `React team` found that in daily development, compared to `add` and `delete`, `update` components occur more frequently. So `Diff` will prioritize whether the current node belongs to `update`.
 
-::: warning 注意
-在我们做数组相关的算法题时，经常使用**双指针**从数组头和尾同时遍历以提高效率，但是这里却不行。
+::: warning note
+When we do array-related arithmetic problems, we often use **double pointer** to traverse from the beginning and the end of the array at the same time to improve efficiency, but this is not the case.
 
-虽然本次更新的`JSX对象` `newChildren`为数组形式，但是和`newChildren`中每个组件进行比较的是`current fiber`，同级的`Fiber节点`是由`sibling`指针链接形成的单链表，即不支持双指针遍历。
+Although the updated `JSX object` `newChildren` is in the form of an array, the comparison with each component in `newChildren` is `current fiber`, and the `Fiber node` at the same level is formed by the `sibling` pointer link Single linked list, that is, does not support double pointer traversal.
 
-即 `newChildren[0]`与`fiber`比较，`newChildren[1]`与`fiber.sibling`比较。
+That is, `newChildren[0]` is compared with `fiber`, and `newChildren[1]` is compared with `fiber.sibling`.
 
-所以无法使用**双指针**优化。
+So it is not possible to use **dual pointer** optimization.
 :::
 
-基于以上原因，`Diff算法`的整体逻辑会经历两轮遍历：
+For the above reasons, the overall logic of the `Diff algorithm` will go through two rounds of traversal:
 
-第一轮遍历：处理`更新`的节点。
+The first round of traversal: processing the nodes of `update`.
 
-第二轮遍历：处理剩下的不属于`更新`的节点。
+The second round of traversal: processing the remaining nodes that are not part of `update`.
 
-## 第一轮遍历 
+## The first round of traversal
 
-第一轮遍历步骤如下：
+The first round of traversal steps are as follows:
 
-1. `let i = 0`，遍历`newChildren`，将`newChildren[i]`与`oldFiber`比较，判断`DOM节点`是否可复用。
+1. `let i = 0`, traverse `newChildren`, compare `newChildren[i]` with `oldFiber`, and judge whether the `DOM node` is reusable.
 
-2. 如果可复用，`i++`，继续比较`newChildren[i]`与`oldFiber.sibling`，可以复用则继续遍历。
+2. If it can be reused, `i++`, continue to compare `newChildren[i]` and `oldFiber.sibling`, and continue to traverse if it can be reused.
 
-3. 如果不可复用，分两种情况：
+3. If it is not reusable, there are two cases:
 
-- `key`不同导致不可复用，立即跳出整个遍历，**第一轮遍历结束。**
+-The `key` is different and cannot be reused. The entire traversal is immediately jumped out, and the first round of traversal ends. **
 
-- `key`相同`type`不同导致不可复用，会将`oldFiber`标记为`DELETION`，并继续遍历
+-`key` is the same and `type` is different and cannot be reused, and `oldFiber` will be marked as `DELETION`, and the traversal will continue
 
-4. 如果`newChildren`遍历完（即`i === newChildren.length - 1`）或者`oldFiber`遍历完（即`oldFiber.sibling === null`），跳出遍历，**第一轮遍历结束。**
+4. If `newChildren` is traversed (ie `i === newChildren.length-1`) or `oldFiber` is traversed (ie `oldFiber.sibling === null`), jump out of the traversal, ** the first round of traversal Finish. **
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L818)看到这轮遍历的源码
+> You can see the source code of this round of traversal from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L818)
 
-当遍历结束后，会有两种结果：
+When the traversal is over, there will be two results:
 
-### 步骤3跳出的遍历
+### Step 3 out of the traversal
 
-此时`newChildren`没有遍历完，`oldFiber`也没有遍历完。
+At this time, `newChildren` has not completed the traversal, and `oldFiber` has not completed the traversal.
 
-举个例子，考虑如下代码：
+For example, consider the following code:
 
 ```jsx
-// 之前
+// Before
 <li key="0">0</li>
 <li key="1">1</li>
 <li key="2">2</li>
             
-// 之后
+// after
 <li key="0">0</li>
 <li key="2">1</li>
 <li key="1">2</li>
 ```
 
-第一个节点可复用，遍历到`key === 2`的节点发现`key`改变，不可复用，跳出遍历，等待第二轮遍历处理。
+The first node can be reused, and the node that traverses to `key === 2` finds that the `key` has changed and is not reusable. It jumps out of the traversal and waits for the second round of traversal processing.
 
-此时`oldFiber`剩下`key === 1`、`key === 2`未遍历，`newChildren`剩下`key === 2`、`key === 1`未遍历。
+At this time, `oldFiber` is left with `key === 1` and `key === 2` not traversed, and `newChildren` is left with `key === 2` and `key === 1` not traversed.
 
 
-### 步骤4跳出的遍历
+### Step 4 out of the traversal
 
-可能`newChildren`遍历完，或`oldFiber`遍历完，或他们同时遍历完。
+It is possible that `newChildren` has been traversed, or `oldFiber` has been traversed, or they have been traversed at the same time.
 
-举个例子，考虑如下代码：
+For example, consider the following code:
 
 ```jsx
-// 之前
+// Before
 <li key="0" className="a">0</li>
 <li key="1" className="b">1</li>
             
-// 之后 情况1 —— newChildren与oldFiber都遍历完
+// After that, case 1-both newChildren and oldFiber are traversed
 <li key="0" className="aa">0</li>
 <li key="1" className="bb">1</li>
             
-// 之后 情况2 —— newChildren没遍历完，oldFiber遍历完
-// newChildren剩下 key==="2" 未遍历
+// After that, case 2-newChildren has not been traversed, oldFiber has been traversed
+// newChildren left key==="2" not traversed
 <li key="0" className="aa">0</li>
 <li key="1" className="bb">1</li>
 <li key="2" className="cc">2</li>
             
-// 之后 情况3 —— newChildren遍历完，oldFiber没遍历完
-// oldFiber剩下 key==="1" 未遍历
+// After the case 3-newChildren is traversed, oldFiber is not traversed
+// oldFiber left key==="1" not traversed
 <li key="0" className="aa">0</li>
 ```
 
-带着第一轮遍历的结果，我们开始第二轮遍历。
+With the results of the first round of traversal, we start the second round of traversal.
 
-## 第二轮遍历
+## Second round of traversal
 
-对于第一轮遍历的结果，我们分别讨论：
+For the results of the first round of traversal, we discuss separately:
 
-### `newChildren`与`oldFiber`同时遍历完
+### `newChildren` and `oldFiber` are traversed at the same time
 
-那就是最理想的情况：只需在第一轮遍历进行组件[`更新`](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L825)。此时`Diff`结束。
+That is the ideal situation: you only need to perform the component [`update`](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new. js#L825). At this point `Diff` is over.
 
-### `newChildren`没遍历完，`oldFiber`遍历完
+### `newChildren` is not traversed, `oldFiber` is traversed
 
-已有的`DOM节点`都复用了，这时还有新加入的节点，意味着本次更新有新节点插入，我们只需要遍历剩下的`newChildren`为生成的`workInProgress fiber`依次标记`Placement`。
+The existing `DOM nodes` are all reused. At this time, there are newly added nodes, which means that there are new nodes inserted in this update. We only need to traverse the remaining `newChildren` to mark the generated `workInProgress fiber` in turn `Placement`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L869)看到这段源码逻辑
+> You can see this source logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L869)
 
-### `newChildren`遍历完，`oldFiber`没遍历完
+### `newChildren` is traversed, `oldFiber` is not traversed
 
-意味着本次更新比之前的节点数量少，有节点被删除了。所以需要遍历剩下的`oldFiber`，依次标记`Deletion`。
+It means that the number of nodes in this update is less than the previous ones, and some nodes have been deleted. So it is necessary to traverse the remaining `oldFiber` and mark `Deletion` in turn.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L863)看到这段源码逻辑
+> You can see this source logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L863)
 
-### `newChildren`与`oldFiber`都没遍历完
+### `newChildren` and `oldFiber` have not been traversed
 
-这意味着有节点在这次更新中改变了位置。
+This means that a node has changed position in this update.
 
-这是`Diff算法`最精髓也是最难懂的部分。我们接下来会重点讲解。
+This is the essence and the most difficult part of the `Diff algorithm`. We will focus on it next.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L893)看到这段源码逻辑
+> You can see this source logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L893)
 
-## 处理移动的节点
+## Handling moving nodes
 
-由于有节点改变了位置，所以不能再用位置索引`i`对比前后的节点，那么如何才能将同一个节点在两次更新中对应上呢？
+Since some nodes have changed their positions, the position index `i` can no longer be used to compare the nodes before and after. So how can the same node be matched in two updates?
 
-我们需要使用`key`。
+We need to use `key`.
 
-为了快速的找到`key`对应的`oldFiber`，我们将所有还未处理的`oldFiber`存入以`key`为key，`oldFiber`为value的`Map`中。
+In order to quickly find the `oldFiber` corresponding to the `key`, we save all the unprocessed `oldFiber` into the `Map` with `key` as the key and `oldFiber` as the value.
 
 ```javascript
 const existingChildren = mapRemainingChildren(returnFiber, oldFiber);
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L890)看到这段源码逻辑
+> You can see this source logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L890)
 
-接下来遍历剩余的`newChildren`，通过`newChildren[i].key`就能在`existingChildren`中找到`key`相同的`oldFiber`。
+Next, traverse the remaining `newChildren` and find the `oldFiber` with the same `key` in `existingChildren` through `newChildren[i].key`.
 
-## 标记节点是否移动
+## Mark whether the node is moving
 
-既然我们的目标是寻找移动的节点，那么我们需要明确：节点是否移动是以什么为参照物？
+Since our goal is to find moving nodes, we need to be clear: Is the node moving based on what is the reference?
 
-我们的参照物是：最后一个可复用的节点在`oldFiber`中的位置索引（用变量`lastPlacedIndex`表示）。
+Our reference is: the position index of the last reusable node in `oldFiber` (represented by the variable `lastPlacedIndex`).
 
-由于本次更新中节点是按`newChildren`的顺序排列。在遍历`newChildren`过程中，每个`遍历到的可复用节点`一定是当前遍历到的`所有可复用节点`中**最靠右的那个**，即一定在`lastPlacedIndex`对应的`可复用的节点`在本次更新中位置的后面。
+Because the nodes in this update are arranged in the order of `newChildren`. In the process of traversing `newChildren`, each reusable node` to be traversed must be the **most rightmost** among all reusable nodes` currently traversed, that is, it must correspond to `lastPlacedIndex` The `reusable node` is behind the position in this update.
 
-那么我们只需要比较`遍历到的可复用节点`在上次更新时是否也在`lastPlacedIndex`对应的`oldFiber`后面，就能知道两次更新中这两个节点的相对位置改变没有。
+Then we only need to compare whether the reusable nodes that are traversed are also behind the oldFiber corresponding to the lastPlacedIndex in the last update, and then we can know whether the relative positions of the two nodes have changed in the two updates.
 
-我们用变量`oldIndex`表示`遍历到的可复用节点`在`oldFiber`中的位置索引。如果`oldIndex < lastPlacedIndex`，代表本次更新该节点需要向右移动。
+We use the variable `oldIndex` to represent the position index of the reusable node that is traversed in `oldFiber`. If `oldIndex <lastPlacedIndex`, it means that the node needs to be moved to the right this time.
 
-`lastPlacedIndex`初始为`0`，每遍历一个可复用的节点，如果`oldIndex >=  lastPlacedIndex`，则`lastPlacedIndex = oldIndex`。
+`lastPlacedIndex` is initially `0`, and each reusable node is traversed, if `oldIndex >= lastPlacedIndex`, then `lastPlacedIndex = oldIndex`.
 
-单纯文字表达比较晦涩，这里我们提供两个Demo，你可以对照着理解。
+Simple text is more obscure, here we provide two demos, you can compare and understand.
 
 ## Demo1
 
-在Demo中我们简化下书写，每个字母代表一个节点，字母的值代表节点的`key`
+In the Demo, we simplify the writing, each letter represents a node, and the value of the letter represents the key of the node.
 ```jsx
 
-// 之前
+// Before
 abcd
 
-// 之后
+// after
 acdb
 
-===第一轮遍历开始===
-a（之后）vs a（之前）  
-key不变，可复用
-此时 a 对应的oldFiber（之前的a）在之前的数组（abcd）中索引为0
-所以 lastPlacedIndex = 0;
+===The first round of traversal begins===
+a (after) vs a (before)
+The key is unchanged and can be reused
+At this time, the oldFiber (previous a) corresponding to a is indexed as 0 in the previous array (abcd)
+So lastPlacedIndex = 0;
 
-继续第一轮遍历...
+Continue the first round of traversal...
 
-c（之后）vs b（之前）  
-key改变，不能复用，跳出第一轮遍历
-此时 lastPlacedIndex === 0;
-===第一轮遍历结束===
+c (after) vs b (before)
+Key changes, cannot be reused, jump out of the first round of traversal
+At this time lastPlacedIndex === 0;
+===End of the first round of traversal===
 
-===第二轮遍历开始===
-newChildren === cdb，没用完，不需要执行删除旧节点
-oldFiber === bcd，没用完，不需要执行插入新节点
+===Beginning of the second round of traversal ===
+newChildren === cdb, not used up, no need to delete old nodes
+oldFiber === bcd, not used up, no need to perform inserting new nodes
 
-将剩余oldFiber（bcd）保存为map
+Save the remaining oldFiber (bcd) as a map
 
-// 当前oldFiber：bcd
-// 当前newChildren：cdb
+// current oldFiber: bcd
+// current newChildren: cdb
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-key === c 在 oldFiber中存在
-const oldIndex = c（之前）.index;
-此时 oldIndex === 2;  // 之前节点为 abcd，所以c.index === 2
-比较 oldIndex 与 lastPlacedIndex;
+key === c exists in oldFiber
+const oldIndex = c (before).index;
+At this time oldIndex === 2; // The previous node was abcd, so c.index === 2
+Compare oldIndex with lastPlacedIndex;
 
-如果 oldIndex >= lastPlacedIndex 代表该可复用节点不需要移动
-并将 lastPlacedIndex = oldIndex;
-如果 oldIndex < lastplacedIndex 该可复用节点之前插入的位置索引小于这次更新需要插入的位置索引，代表该节点需要向右移动
+If oldIndex >= lastPlacedIndex, it means that the reusable node does not need to be moved
+And put lastPlacedIndex = oldIndex;
+If oldIndex <lastplacedIndex, the previously inserted position index of the reusable node is less than the position index that needs to be inserted in this update, which means that the node needs to move to the right
 
-在例子中，oldIndex 2 > lastPlacedIndex 0，
-则 lastPlacedIndex = 2;
-c节点位置不变
+In the example, oldIndex 2> lastPlacedIndex 0,
+Then lastPlacedIndex = 2;
+c-node position remains unchanged
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：bd
-// 当前newChildren：db
+// current oldFiber: bd
+// current newChildren: db
 
-key === d 在 oldFiber中存在
-const oldIndex = d（之前）.index;
-oldIndex 3 > lastPlacedIndex 2 // 之前节点为 abcd，所以d.index === 3
-则 lastPlacedIndex = 3;
-d节点位置不变
+key === d exists in oldFiber
+const oldIndex = d (before).index;
+oldIndex 3> lastPlacedIndex 2 // The previous node was abcd, so d.index === 3
+Then lastPlacedIndex = 3;
+d node position remains unchanged
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：b
-// 当前newChildren：b
+// current oldFiber: b
+// current newChildren: b
 
-key === b 在 oldFiber中存在
-const oldIndex = b（之前）.index;
-oldIndex 1 < lastPlacedIndex 3 // 之前节点为 abcd，所以b.index === 1
-则 b节点需要向右移动
-===第二轮遍历结束===
+key === b exists in oldFiber
+const oldIndex = b (before).index;
+oldIndex 1 <lastPlacedIndex 3 // The previous node was abcd, so b.index === 1
+Then the b node needs to move to the right
+===End of second round of traversal===
 
-最终acd 3个节点都没有移动，b节点被标记为移动
+In the end, none of the acd 3 nodes moved, and the b node was marked as mobile
 
 ```
 
 ## Demo2
 
 ```jsx
-// 之前
+// Before
 abcd
 
-// 之后
+// after
 dabc
 
-===第一轮遍历开始===
-d（之后）vs a（之前）  
-key改变，不能复用，跳出遍历
-===第一轮遍历结束===
+===The first round of traversal begins===
+d (after) vs a (before)
+Key changes, cannot be reused, jump out of traversal
+===End of the first round of traversal===
 
-===第二轮遍历开始===
-newChildren === dabc，没用完，不需要执行删除旧节点
-oldFiber === abcd，没用完，不需要执行插入新节点
+===Beginning of the second round of traversal ===
+newChildren === dabc, not used up, no need to delete old nodes
+oldFiber === abcd, not used up, no need to perform inserting new nodes
 
-将剩余oldFiber（abcd）保存为map
+Save the remaining oldFiber (abcd) as a map
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：abcd
-// 当前newChildren dabc
+// current oldFiber: abcd
+// current newChildren dabc
 
-key === d 在 oldFiber中存在
-const oldIndex = d（之前）.index;
-此时 oldIndex === 3; // 之前节点为 abcd，所以d.index === 3
-比较 oldIndex 与 lastPlacedIndex;
-oldIndex 3 > lastPlacedIndex 0
-则 lastPlacedIndex = 3;
-d节点位置不变
+key === d exists in oldFiber
+const oldIndex = d (before).index;
+At this time oldIndex === 3; // The previous node was abcd, so d.index === 3
+Compare oldIndex with lastPlacedIndex;
+oldIndex 3> lastPlacedIndex 0
+Then lastPlacedIndex = 3;
+d node position remains unchanged
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：abc
-// 当前newChildren abc
+// current oldFiber: abc
+// current newChildren abc
 
-key === a 在 oldFiber中存在
-const oldIndex = a（之前）.index; // 之前节点为 abcd，所以a.index === 0
-此时 oldIndex === 0;
-比较 oldIndex 与 lastPlacedIndex;
-oldIndex 0 < lastPlacedIndex 3
-则 a节点需要向右移动
+key === a exists in oldFiber
+const oldIndex = a (before).index; // The previous node was abcd, so a.index === 0
+At this time oldIndex === 0;
+Compare oldIndex with lastPlacedIndex;
+oldIndex 0 <lastPlacedIndex 3
+Then a node needs to move to the right
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：bc
-// 当前newChildren bc
+// current oldFiber: bc
+// current newChildren bc
 
-key === b 在 oldFiber中存在
-const oldIndex = b（之前）.index; // 之前节点为 abcd，所以b.index === 1
-此时 oldIndex === 1;
-比较 oldIndex 与 lastPlacedIndex;
-oldIndex 1 < lastPlacedIndex 3
-则 b节点需要向右移动
+key === b exists in oldFiber
+const oldIndex = b (before).index; // The previous node was abcd, so b.index === 1
+At this time oldIndex === 1;
+Compare oldIndex with lastPlacedIndex;
+oldIndex 1 <lastPlacedIndex 3
+Then the b node needs to move to the right
 
-继续遍历剩余newChildren
+Continue to traverse the remaining newChildren
 
-// 当前oldFiber：c
-// 当前newChildren c
+// current oldFiber: c
+// current newChildren c
 
-key === c 在 oldFiber中存在
-const oldIndex = c（之前）.index; // 之前节点为 abcd，所以c.index === 2
-此时 oldIndex === 2;
-比较 oldIndex 与 lastPlacedIndex;
-oldIndex 2 < lastPlacedIndex 3
-则 c节点需要向右移动
+key === c exists in oldFiber
+const oldIndex = c (before).index; // The previous node was abcd, so c.index === 2
+At this time oldIndex === 2;
+Compare oldIndex with lastPlacedIndex;
+oldIndex 2 <lastPlacedIndex 3
+Then the c node needs to move to the right
 
-===第二轮遍历结束===
+===End of second round of traversal===
 
 ```
 
-可以看到，我们以为从 `abcd` 变为 `dabc`，只需要将`d`移动到前面。
+As you can see, we think that to change from `abcd` to `dabc`, we only need to move `d` to the front.
 
-但实际上React保持`d`不变，将`abc`分别移动到了`d`的后面。
+But in fact, React keeps `d` unchanged, and moves `abc` to the back of `d`.
 
-从这点可以看出，考虑性能，我们要尽量减少将节点从后面移动到前面的操作。
+It can be seen from this point that considering performance, we should minimize the operation of moving nodes from the back to the front.

@@ -1,14 +1,14 @@
-React核心团队成员[Sebastian Markbåge](https://github.com/sebmarkbage/)（`React Hooks`的发明者）曾说：我们在`React`中做的就是践行`代数效应`（Algebraic Effects）。
+React core team member [Sebastian Markbåge](https://github.com/sebmarkbage/) (the inventor of `React Hooks`) once said: What we do in `React` is to practice `Algebraic Effects` (Algebraic Effects) ).
 
-那么，`代数效应`是什么呢？他和`React`有什么关系呢。
+So, what is the `algebraic effect`? What does he have to do with `React`.
 
-## 什么是代数效应
+## What is algebraic effect
 
-`代数效应`是`函数式编程`中的一个概念，用于将`副作用`从`函数`调用中分离。
+`Algebraic effect` is a concept in `functional programming`, used to separate `side effects` from `function` calls.
 
-接下来我们用`虚构的语法`来解释。
+Next, we use `fictional grammar` to explain.
 
-假设我们有一个函数`getTotalPicNum`，传入2个`用户名称`后，分别查找该用户在平台保存的图片数量，最后将图片数量相加后返回。
+Suppose we have a function `getTotalPicNum`, after passing in two `user names`, respectively find the number of pictures saved by the user on the platform, and finally add the number of pictures and return.
 
 ```js
 function getTotalPicNum(user1, user2) {
@@ -19,13 +19,13 @@ function getTotalPicNum(user1, user2) {
 }
 ```
 
-在`getTotalPicNum`中，我们不关注`getPicNum`的实现，只在乎“获取到两个数字后将他们相加的结果返回”这一过程。
+In `getTotalPicNum`, we don't care about the implementation of `getPicNum`, only the process of "getting two numbers and returning the result of adding them".
 
-接下来我们来实现`getPicNum`。
+Next we will implement `getPicNum`.
 
-"用户在平台保存的图片数量"是保存在服务器中的。所以，为了获取该值，我们需要发起异步请求。
+The "number of pictures saved by the user on the platform" is stored in the server. Therefore, in order to obtain this value, we need to initiate an asynchronous request.
 
-为了尽量保持`getTotalPicNum`的调用方式不变，我们首先想到了使用`async await`：
+In order to keep the calling method of `getTotalPicNum` unchanged as much as possible, we first thought of using `async await`:
 
 ```js
 async function getTotalPicNum(user1, user2) {
@@ -36,13 +36,13 @@ async function getTotalPicNum(user1, user2) {
 }
 ```
 
-但是，`async await`是有`传染性`的 —— 当一个函数变为`async`后，这意味着调用他的函数也需要是`async`，这破坏了`getTotalPicNum`的同步特性。
+However, `async await` is `contagious`-when a function becomes `async`, it means that the function that calls it also needs to be `async`, which destroys the synchronization characteristics of `getTotalPicNum`.
 
-有没有什么办法能保持`getTotalPicNum`保持现有调用方式不变的情况下实现异步请求呢？
+Is there any way to implement asynchronous requests while keeping `getTotalPicNum` unchanged from the existing calling method?
 
-没有。不过我们可以`虚构`一个。
+no. But we can `make up` one.
 
-我们虚构一个类似`try...catch`的语法 —— `try...handle`与两个操作符`perform`、`resume`。
+We make up a grammar similar to `try...catch`-`try...handle` and two operators `perform` and `resume`.
 
 ```js
 function getPicNum(name) {
@@ -51,12 +51,12 @@ function getPicNum(name) {
 }
 
 try {
-  getTotalPicNum('kaSong', 'xiaoMing');
+  getTotalPicNum('kaSong','xiaoMing');
 } handle (who) {
   switch (who) {
-    case 'kaSong':
+    case'kaSong':
       resume with 230;
-    case 'xiaoMing':
+    case'xiaoMing':
       resume with 122;
     default:
       resume with 0;
@@ -64,49 +64,49 @@ try {
 }
 ```
 
-当执行到`getTotalPicNum`内部的`getPicNum`方法时，会执行`perform name`。
+When the `getPicNum` method inside `getTotalPicNum` is executed, the `perform name` will be executed.
 
-此时函数调用栈会从`getPicNum`方法内跳出，被最近一个`try...handle`捕获。类似`throw Error`后被最近一个`try...catch`捕获。
+At this time, the function call stack will jump out of the `getPicNum` method and be captured by the most recent `try...handle`. Similar to `throw Error`, it was caught by the latest `try...catch`.
 
-类似`throw Error`后`Error`会作为`catch`的参数，`perform name`后`name`会作为`handle`的参数。
+Similar to `throw Error`, `Error` will be used as the parameter of `catch`, and after `perform name`, `name` will be used as the parameter of `handle`.
 
-与`try...catch`最大的不同在于：当`Error`被`catch`捕获后，之前的调用栈就销毁了。而`handle`执行`resume`后会回到之前`perform`的调用栈。
+The biggest difference with `try...catch` is that when `Error` is caught by `catch`, the previous call stack is destroyed. And after `handle` executes `resume`, it will return to the call stack of previous `perform`.
 
-对于`case 'kaSong'`，执行完`resume with 230;`后调用栈会回到`getPicNum`，此时`picNum === 230`
+For `case'kaSong'`, the call stack will return to `getPicNum` after executing `resume with 230;`, at this time `picNum === 230`
 
-::: warning 注意
+::: warning note
 
-再次申明，`try...handle`的语法是虚构的，只是为了演示`代数效应`的思想。
+Again, the syntax of `try...handle` is fictitious, just to demonstrate the idea of ​​`algebraic effect`.
 
 :::
 
-总结一下：`代数效应`能够将`副作用`（例子中为`请求图片数量`）从函数逻辑中分离，使函数关注点保持纯粹。
+To summarize: the `algebraic effect` can separate the `side effects` (in the example, the number of images requested) from the function logic, keeping the focus of the function pure.
 
-并且，从例子中可以看出，`perform resume`不需要区分同步异步。
+And, as can be seen from the example, `perform resume` does not need to distinguish between synchronous and asynchronous.
 
-## 代数效应在React中的应用
+## Application of Algebraic Effect in React
 
-那么`代数效应`与`React`有什么关系呢？最明显的例子就是`Hooks`。
+So what is the relationship between `Algebraic Effect` and `React`? The most obvious example is `Hooks`.
 
-对于类似`useState`、`useReducer`、`useRef`这样的`Hook`，我们不需要关注`FunctionComponent`的`state`在`Hook`中是如何保存的，`React`会为我们处理。
+For `Hook`s like `useState`, `useReducer`, and `useRef`, we don't need to pay attention to how the `state` of `FunctionComponent` is saved in `Hook`, `React` will handle it for us.
 
-我们只需要假设`useState`返回的是我们想要的`state`，并编写业务逻辑就行。
+We just need to assume that `useState` returns the `state` we want, and write business logic.
 
 ```js
 function App() {
   const [num, updateNum] = useState(0);
   
   return (
-    <button onClick={() => updateNum(num => num + 1)}>{num}</button>  
+    <button onClick={() => updateNum(num => num + 1)}>{num}</button>
   )
 }
 ```
 
-如果这个例子还不够明显，可以看看官方的[Suspense Demo](https://codesandbox.io/s/frosty-hermann-bztrp?file=/src/index.js:152-160)
+If this example is not obvious enough, you can take a look at the official [Suspense Demo](https://codesandbox.io/s/frosty-hermann-bztrp?file=/src/index.js:152-160)
 
-在`Demo`中`ProfileDetails`用于展示`用户名称`。而`用户名称`是`异步请求`的。
+In `Demo`, `ProfileDetails` is used to display `user name`. The `username` is an `asynchronous request`.
 
-但是`Demo`中完全是`同步`的写法。
+But in `Demo` it is completely the way of writing `Synchronous`.
 
 ```js
 function ProfileDetails() {
@@ -115,23 +115,23 @@ function ProfileDetails() {
 }
 ```
 
-## 代数效应与Generator
+## Algebraic Effects and Generator
 
-从`React15`到`React16`，协调器（`Reconciler`）重构的一大目的是：将老的`同步更新`的架构变为`异步可中断更新`。
+From `React15` to `React16`, a major goal of the refactoring of the reconciler (`Reconciler`) is to change the architecture of the old `synchronous update` into an `asynchronous interruptible update`.
 
-`异步可中断更新`可以理解为：`更新`在执行过程中可能会被打断（浏览器时间分片用尽或有更高优任务插队），当可以继续执行时恢复之前执行的中间状态。
+`Asynchronous interruptible update` can be understood as: `Update` may be interrupted in the execution process (the browser time slice is exhausted or there is a higher-quality task jump in the queue), and the intermediate state of the previous execution will be restored when the execution can continue. .
 
-这就是`代数效应`中`try...handle`的作用。
+This is the role of `try...handle` in `Algebraic Effect`.
 
-其实，浏览器原生就支持类似的实现，这就是`Generator`。
+In fact, the browser natively supports a similar implementation, this is `Generator`.
 
-但是`Generator`的一些缺陷使`React`团队放弃了他：
+But some flaws in `Generator` caused the `React` team to abandon him:
 
-- 类似`async`，`Generator`也是`传染性`的，使用了`Generator`则上下文的其他函数也需要作出改变。这样心智负担比较重。
+-Similar to `async`, `Generator` is also `contagious`, and other functions of the context need to be changed if `Generator` is used. This kind of mental burden is heavier.
 
-- `Generator`执行的`中间状态`是上下文关联的。
+-The `Intermediate state` executed by `Generator` is context dependent.
 
-考虑如下例子：
+Consider the following example:
 
 ```js
 function* doWork(A, B, C) {
@@ -144,32 +144,32 @@ function* doWork(A, B, C) {
 }
 ```
 
-每当浏览器有空闲时间都会依次执行其中一个`doExpensiveWork`，当时间用尽则会中断，当再次恢复时会从中断位置继续执行。
+Whenever the browser has free time, it will execute one of the `doExpensiveWork`s in sequence. When the time runs out, it will be interrupted, and when it resumes again, it will continue to execute from the interrupted location.
 
-只考虑“单一优先级任务的中断与继续”情况下`Generator`可以很好的实现`异步可中断更新`。
+Only considering the "interruption and continuation of a single priority task" `Generator` can well implement `asynchronous interruptible update`.
 
-但是当我们考虑“高优先级任务插队”的情况，如果此时已经完成`doExpensiveWorkA`与`doExpensiveWorkB`计算出`x`与`y`。
+But when we consider the "high-priority task jumping in line" situation, if the `doExpensiveWorkA` and `doExpensiveWorkB` have been completed at this time, the `x` and `y` are calculated.
 
-此时`B`组件接收到一个`高优更新`，由于`Generator`执行的`中间状态`是上下文关联的，所以计算`y`时无法复用之前已经计算出的`x`，需要重新计算。
+At this time, the `B` component receives a `high-quality update`. Since the `intermediate state` executed by the `Generator` is context-dependent, the previously calculated `x` cannot be reused when calculating the `y`, and it needs to be renewed calculate.
 
-如果通过`全局变量`保存之前执行的`中间状态`，又会引入新的复杂度。
+If the previously executed `intermediate state` is saved through `global variables`, new complexity will be introduced.
 
-> 更详细的解释可以参考[这个issue](https://github.com/facebook/react/issues/7942#issuecomment-254987818)
+> For more detailed explanation, please refer to [this issue](https://github.com/facebook/react/issues/7942#issuecomment-254987818)
 
-基于这些原因，`React`没有采用`Generator`实现`协调器`。
+For these reasons, `React` did not use `Generator` to implement `Coordinator`.
 
-## 代数效应与Fiber
+## Algebraic Effects and Fiber
 
-`Fiber`并不是计算机术语中的新名词，他的中文翻译叫做`纤程`，与进程（Process）、线程（Thread）、协程（Coroutine）同为程序执行过程。
+`Fiber` is not a new term in computer terminology. Its Chinese translation is called `丝程`, which is the same program execution process as Process, Thread, and Coroutine.
 
-在很多文章中将`纤程`理解为`协程`的一种实现。在`JS`中，`协程`的实现便是`Generator`。
+In many articles, `fiber` is understood as an implementation of `coroutine`. In `JS`, the implementation of `coroutine` is `Generator`.
 
-所以，我们可以将`纤程`(Fiber)、`协程`(Generator)理解为`代数效应`思想在`JS`中的体现。
+Therefore, we can understand `Fiber` (Fiber) and `Coroutine` (Generator) as the embodiment of the idea of ​​`Algebraic Effect` in `JS`.
 
-`React Fiber`可以理解为：
+`React Fiber` can be understood as:
 
-`React`内部实现的一套状态更新机制。支持任务不同`优先级`，可中断与恢复，并且恢复后可以复用之前的`中间状态`。
+A set of state update mechanism implemented internally by `React`. Support tasks with different `priorities`, which can be interrupted and resumed, and the previous `intermediate state` can be reused after recovery.
 
-其中每个任务更新单元为`React Element`对应的`Fiber节点`。
+Each task update unit is the `Fiber node` corresponding to `React Element`.
 
-下一节，我们具体讲解`Fiber架构`的实现。
+In the next section, we will explain the implementation of `Fiber Architecture` in detail.

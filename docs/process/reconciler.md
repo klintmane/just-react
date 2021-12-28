@@ -1,18 +1,18 @@
-本章我们会讲解`Fiber节点`是如何被创建并构建`Fiber树`的。
+In this chapter, we will explain how the `Fiber node` is created and the `Fiber tree` is constructed.
 
-`render阶段`开始于`performSyncWorkOnRoot`或`performConcurrentWorkOnRoot`方法的调用。这取决于本次更新是同步更新还是异步更新。
+The `render phase` starts with the call of the `performSyncWorkOnRoot` or `performConcurrentWorkOnRoot` method. It depends on whether the update is synchronous or asynchronous.
 
-我们现在还不需要学习这两个方法，只需要知道在这两个方法中会调用如下两个方法：
+We don't need to learn these two methods yet, we just need to know that the following two methods will be called in these two methods:
 
 ```js
-// performSyncWorkOnRoot会调用该方法
+// performSyncWorkOnRoot will call this method
 function workLoopSync() {
   while (workInProgress !== null) {
     performUnitOfWork(workInProgress);
   }
 }
 
-// performConcurrentWorkOnRoot会调用该方法
+// performConcurrentWorkOnRoot will call this method
 function workLoopConcurrent() {
   while (workInProgress !== null && !shouldYield()) {
     performUnitOfWork(workInProgress);
@@ -20,37 +20,37 @@ function workLoopConcurrent() {
 }
 ```
 
-可以看到，他们唯一的区别是是否调用`shouldYield`。如果当前浏览器帧没有剩余时间，`shouldYield`会中止循环，直到浏览器有空闲时间后再继续遍历。
+As you can see, the only difference between them is whether to call `shouldYield`. If there is no time left in the current browser frame, `shouldYield` will stop the loop and continue to traverse until the browser has free time.
 
-`workInProgress`代表当前已创建的`workInProgress fiber`。
+`workInProgress` represents the currently created `workInProgress fiber`.
 
-`performUnitOfWork`方法会创建下一个`Fiber节点`并赋值给`workInProgress`，并将`workInProgress`与已创建的`Fiber节点`连接起来构成`Fiber树`。
+The `performUnitOfWork` method will create the next `Fiber node` and assign it to `workInProgress`, and connect the `workInProgress` with the created `Fiber node` to form a `Fiber tree`.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1599)看到`workLoopConcurrent`的源码
+> You can see the source code of `workLoopConcurrent` from [here](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1599)
 
-我们知道`Fiber Reconciler`是从`Stack Reconciler`重构而来，通过遍历的方式实现可中断的递归，所以`performUnitOfWork`的工作可以分为两部分：“递”和“归”。
+We know that `Fiber Reconciler` is refactored from `Stack Reconciler` to realize interruptible recursion through traversal, so the work of `performUnitOfWork` can be divided into two parts: "recursion" and "recursion".
 
-## “递”阶段
+## "Delivery" stage
 
-首先从`rootFiber`开始向下深度优先遍历。为遍历到的每个`Fiber节点`调用[beginWork方法](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L3058)。
+First, start from `rootFiber` and traverse down depth first. Call [beginWork method](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberBeginWork.new.js#L3058) for each `Fiber node` that is traversed.
 
-该方法会根据传入的`Fiber节点`创建`子Fiber节点`，并将这两个`Fiber节点`连接起来。
+This method will create a `child Fiber node` based on the incoming `Fiber node`, and connect the two `Fiber nodes`.
 
-当遍历到叶子节点（即没有子组件的组件）时就会进入“归”阶段。
+When traversing to a leaf node (that is, a component without subcomponents), it will enter the "return" phase.
 
-## “归”阶段
+## "Return" stage
 
-在“归”阶段会调用[completeWork](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L652)处理`Fiber节点`。
+In the "return" phase, [completeWork](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCompleteWork.new.js#L652) will be called to process the `Fiber node`.
 
-当某个`Fiber节点`执行完`completeWork`，如果其存在`兄弟Fiber节点`（即`fiber.sibling !== null`），会进入其`兄弟Fiber`的“递”阶段。
+When a `Fiber node` finishes executing `completeWork`, if there is a `sibling Fiber node` (ie `fiber.sibling !== null`), it will enter the "handing" phase of its `brother Fiber`.
 
-如果不存在`兄弟Fiber`，会进入`父级Fiber`的“归”阶段。
+If there is no `brother Fiber`, it will enter the "return" phase of the `parent Fiber`.
 
-“递”和“归”阶段会交错执行直到“归”到`rootFiber`。至此，`render阶段`的工作就结束了。
+The "pass" and "return" phases will be executed alternately until the "return" to `rootFiber`. At this point, the work of the `render phase` is over.
 
-## 例子
+## example
 
-以上一节的例子举例：
+Examples of the examples in the previous section:
 
 ```js
 function App() {
@@ -65,10 +65,10 @@ function App() {
 ReactDOM.render(<App />, document.getElementById("root"));
 ```
 
-对应的`Fiber树`结构：
-<img :src="$withBase('/img/fiber.png')" alt="Fiber架构">
+The corresponding `Fiber tree` structure:
+<img :src="$withBase('/img/fiber.png')" alt="Fiber Architecture">
 
-`render阶段`会依次执行：
+The `render phase` will be executed in sequence:
 
 ```sh
 1. rootFiber beginWork
@@ -83,33 +83,33 @@ ReactDOM.render(<App />, document.getElementById("root"));
 10. rootFiber completeWork
 ```
 
-::: warning 注意
-之所以没有 “KaSong” Fiber 的 beginWork/completeWork，是因为作为一种性能优化手段，针对只有单一文本子节点的`Fiber`，`React`会特殊处理。
+::: warning note
+The reason why there is no beginWork/completeWork of "KaSong" Fiber is because as a performance optimization method, for `Fiber` that has only a single text child node, `React` will handle it specially.
 :::
 
-::: details 自己试一试 Demo
-我在`beginWork`和`completeWork`调用时打印`fiber.tag`和`fiber.type`。
+::: details Try it yourself Demo
+I print `fiber.tag` and `fiber.type` when calling `beginWork` and `completeWork`.
 
-你可以从[ReactWorkTags.js](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactWorkTags.js)看到`Fiber节点`的所有`tag`定义。
+You can see all the `tag` definitions of `Fiber node` from [ReactWorkTags.js](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactWorkTags.js).
 
-相信多调试几次，你一定能明白方法的调用顺序
+I believe you will be able to understand the calling sequence of the method after you debug it a few times
 
-[关注公众号](../me.html)，后台回复**904**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **904** to get the online Demo address
 :::
 
-::: details performUnitOfWork 的递归版本
+::: details perform a recursive version of UnitOfWork
 
-如果将`performUnitOfWork`转化为递归版本，大体代码如下：
+If you convert `performUnitOfWork` into a recursive version, the general code is as follows:
 
 ```js
 function performUnitOfWork(fiber) {
-  // 执行beginWork
+  // Execute beginWork
 
   if (fiber.child) {
     performUnitOfWork(fiber.child);
   }
 
-  // 执行completeWork
+  // execute completeWork
 
   if (fiber.sibling) {
     performUnitOfWork(fiber.sibling);
@@ -119,12 +119,12 @@ function performUnitOfWork(fiber) {
 
 :::
 
-## 总结
+## Summarize
 
-本节我们介绍了`render阶段`会调用的方法。在接下来两节中，我们会讲解`beginWork`和`completeWork`做的具体工作。
+In this section, we introduced the methods that the `render phase` will call. In the next two sections, we will explain the specific work done by `beginWork` and `completeWork`.
 
-## 参考资料
+## Reference
 
-[The how and why on React’s usage of linked list in Fiber to walk the component’s tree](https://indepth.dev/the-how-and-why-on-reacts-usage-of-linked-list-in-fiber-to-walk-the-components-tree/)
+[The how and why on React's usage of linked list in Fiber to walk the component's tree](https://indepth.dev/the-how-and-why-on-reacts-usage-of-linked-list-in- fiber-to-walk-the-components-tree/)
 
 [Inside Fiber: in-depth overview of the new reconciliation algorithm in React](https://indepth.dev/inside-fiber-in-depth-overview-of-the-new-reconciliation-algorithm-in-react/)

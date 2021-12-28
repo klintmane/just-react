@@ -2,8 +2,8 @@
   <div>
     <PageNavOrigin :sidebarItems="sidebarItems"/>
     <div class="icp-footer">
-      <p>Copyright© 2020-{{(new Date()).getFullYear()}} 卡颂</p>
-      <a href="https://beian.miit.gov.cn/" target="_blank">京ICP备20028082号-1</a>
+      <p>Copyright© 2020-{{(new Date()).getFullYear()}} Card Song</p>
+      <a href="https://beian.miit.gov.cn/" target="_blank">Beijing ICP No. 20028082-1</a>
     </div>
   </div>
 </template>

@@ -1,33 +1,33 @@
-上一节我们聊到React15架构不能支撑异步更新以至于需要重构。那么这一节我们来学习重构后的React16是如何支持异步更新的。
+In the last section we talked about the React15 architecture cannot support asynchronous updates and requires refactoring. So in this section we will learn how the refactored React16 supports asynchronous updates.
 
-## React16架构
+## React16 architecture
 
-React16架构可以分为三层：
+The React16 architecture can be divided into three layers:
 
-- Scheduler（调度器）—— 调度任务的优先级，高优任务优先进入**Reconciler**
-- Reconciler（协调器）—— 负责找出变化的组件
-- Renderer（渲染器）—— 负责将变化的组件渲染到页面上
+-Scheduler-priority of scheduling tasks, high-quality tasks enter **Reconciler** first
+-Reconciler-Responsible for finding the changed components
+-Renderer (renderer)-responsible for rendering the changed components to the page
 
-可以看到，相较于React15，React16中新增了**Scheduler（调度器）**，让我们来了解下他。
+As you can see, compared to React15, React16 has added a new scheduler **Scheduler**, let's get to know him.
 
-### Scheduler（调度器）
+### Scheduler
 
-既然我们以浏览器是否有剩余时间作为任务中断的标准，那么我们需要一种机制，当浏览器有剩余时间时通知我们。
+Since we use whether the browser has remaining time as the criterion for task interruption, we need a mechanism to notify us when the browser has remaining time.
 
-其实部分浏览器已经实现了这个API，这就是[requestIdleCallback](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback)。但是由于以下因素，`React`放弃使用：
+In fact, some browsers have implemented this API, which is [requestIdleCallback](https://developer.mozilla.org/zh-CN/docs/Web/API/Window/requestIdleCallback). But because of the following factors, `React` gave up its use:
 
-- 浏览器兼容性
-- 触发频率不稳定，受很多因素影响。比如当我们的浏览器切换tab后，之前tab注册的`requestIdleCallback`触发的频率会变得很低
+-Browser compatibility
+-The trigger frequency is unstable and affected by many factors. For example, when our browser switches tabs, the frequency of triggering of the `requestIdleCallback` registered by the previous tab will become very low.
 
-基于以上原因，`React`实现了功能更完备的`requestIdleCallback`polyfill，这就是**Scheduler**。除了在空闲时触发回调的功能外，**Scheduler**还提供了多种调度优先级供任务设置。
+For the above reasons, `React` implements a more complete `requestIdleCallback` polyfill, which is **Scheduler**. In addition to the function of triggering callbacks when idle, **Scheduler** also provides a variety of scheduling priorities for task settings.
 
-> [Scheduler](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/README.md)是独立于`React`的库
+> [Scheduler](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/scheduler/README.md) is a library independent of `React`
 
-### Reconciler（协调器）
+### Reconciler (Coordinator)
 
-我们知道，在React15中**Reconciler**是递归处理虚拟DOM的。让我们看看[React16的Reconciler](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1673)。
+We know that in React15 **Reconciler** processes the virtual DOM recursively. Let's take a look at [Reconciler for React16](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L1673).
 
-我们可以看见，更新工作从递归变成了可以中断的循环过程。每次循环都会调用`shouldYield`判断当前是否有剩余时间。
+We can see that the update work has changed from recursion to a cyclic process that can be interrupted. Each loop calls `shouldYield` to determine if there is any time left.
 ```js
 /** @noinline */
 function workLoopConcurrent() {
@@ -38,65 +38,65 @@ function workLoopConcurrent() {
 }
 ```
 
-那么React16是如何解决中断更新时DOM渲染不完全的问题呢？
+So how does React16 solve the problem of incomplete DOM rendering when the update is interrupted?
 
-在React16中，**Reconciler**与**Renderer**不再是交替工作。当**Scheduler**将任务交给**Reconciler**后，**Reconciler**会为变化的虚拟DOM打上代表增/删/更新的标记，类似这样：
+In React 16, **Reconciler** and **Renderer** no longer work alternately. When **Scheduler** hands over the task to **Reconciler**, **Reconciler** will mark the changed virtual DOM with a mark representing addition/deletion/update, similar to this:
 
 ```js
-export const Placement = /*             */ 0b0000000000010;
-export const Update = /*                */ 0b0000000000100;
-export const PlacementAndUpdate = /*    */ 0b0000000000110;
-export const Deletion = /*              */ 0b0000000001000;
+export const Placement = /* */ 0b0000000000010;
+export const Update = /* */ 0b0000000000100;
+export const PlacementAndUpdate = /* */ 0b0000000000110;
+export const Deletion = /* */ 0b0000000001000;
 ```
 
-> 全部的标记见[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js)
+> See [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactSideEffectTags.js) for all tags
 
-整个**Scheduler**与**Reconciler**的工作都在内存中进行。只有当所有组件都完成**Reconciler**的工作，才会统一交给**Renderer**。
+The entire **Scheduler** and **Reconciler** work is carried out in memory. Only when all components have completed the work of **Reconciler**, will they be handed over to **Renderer**.
 
-> 你可以在[这里](https://zh-hans.reactjs.org/docs/codebase-overview.html#fiber-reconciler)看到`React`官方对React16新**Reconciler**的解释
+> You can see the official explanation of `React` on React16's new **Reconciler** in [here](https://zh-hans.reactjs.org/docs/codebase-overview.html#fiber-reconciler)
 
-### Renderer（渲染器）
+### Renderer
 
-**Renderer**根据**Reconciler**为虚拟DOM打的标记，同步执行对应的DOM操作。
+**Renderer** performs the corresponding DOM operation synchronously according to the mark made by **Reconciler** for the virtual DOM.
 
-所以，对于我们在上一节使用过的Demo
+So, for the Demo we used in the previous section
 
-::: details 乘法小Demo
+::: details Multiplication Demo
 
-[关注公众号](../me.html)，后台回复**222**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **222** to get the online Demo address
 
-`state.count = 1`，每次点击按钮`state.count++`
+`state.count = 1`, every time you click the button `state.count++`
 
-列表中3个元素的值分别为1，2，3乘以`state.count`的结果 
+The values ​​of the 3 elements in the list are 1, 2, and 3 multiplied by the result of `state.count`
 :::
 
-在React16架构中整个更新流程为：
+The entire update process in the React16 architecture is:
 
-<img :src="$withBase('/img/process.png')" alt="更新流程">
+<img :src="$withBase('/img/process.png')" alt="update process">
 
-其中红框中的步骤随时可能由于以下原因被中断：
+The steps in the red box may be interrupted at any time due to the following reasons:
 
-- 有其他更高优任务需要先更新
-- 当前帧没有剩余时间
+-There are other higher priority tasks that need to be updated first
+-There is no time left in the current frame
 
-由于红框中的工作都在内存中进行，不会更新页面上的DOM，所以即使反复中断，用户也不会看见更新不完全的DOM（即上一节演示的情况）。
+Since the work in the red box is performed in memory and the DOM on the page is not updated, even if it is repeatedly interrupted, the user will not see the incompletely updated DOM (that is, the situation demonstrated in the previous section).
 
-> 实际上，由于**Scheduler**和**Reconciler**都是平台无关的，所以`React`为他们单独发了一个包[react-Reconciler](https://www.npmjs.com/package/react-reconciler)。你可以用这个包自己实现一个`ReactDOM`，具体见**参考资料**
+> In fact, since both **Scheduler** and **Reconciler** are platform-independent, so `React` sent a separate package for them [react-Reconciler](https://www.npmjs.com/package /react-reconciler). You can use this package to implement a `ReactDOM` yourself, see **References** for details
  
-## 总结
+## Summarize
 
-通过本节我们知道了`React16`采用新的`Reconciler`。
+Through this section, we know that `React16` adopts the new `Reconciler`.
 
-`Reconciler`内部采用了`Fiber`的架构。
+`Reconciler` adopts the architecture of `Fiber` internally.
 
-`Fiber`是什么？他和`Reconciler`或者说和`React`之间是什么关系？我们会在接下来三节解答。
+What is `Fiber`? What is the relationship between him and `Reconciler` or `React`? We will answer in the next three sections.
 
-## 参考资料
+## Reference
 
-[「英文 外网」Building a Custom React Renderer | React前经理Sophie Alpert](https://www.youtube.com/watch?v=CGpMlWVcHok&list=PLPxbbTqCLbGHPxZpw4xj_Wwg8-fdNxJRh&index=7)
+["English Extranet" Building a Custom React Renderer | Sophie Alpert, former manager of React](https://www.youtube.com/watch?v=CGpMlWVcHok&list=PLPxbbTqCLbGHPxZpw4xj_Wwg8-fdNxJRh&index=7)
 
-:::details 同步/Debounce/Throttle/并发 情况下性能对比Demo
+:::details Synchronous/Debounce/Throttle/Concurrent performance comparison demo
 
-[关注公众号](../me.html)，后台回复**323**获得在线Demo地址
+[Follow the public account](../me.html), backstage reply **323** to get the online Demo address
 
 :::

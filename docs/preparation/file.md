@@ -1,45 +1,45 @@
-经过之前的学习，我们已经知道`React16`的架构分为三层：
+After previous studies, we already know that the architecture of `React16` is divided into three layers:
 
-- Scheduler（调度器）—— 调度任务的优先级，高优任务优先进入**Reconciler**
-- Reconciler（协调器）—— 负责找出变化的组件
-- Renderer（渲染器）—— 负责将变化的组件渲染到页面上
+-Scheduler-priority of scheduling tasks, high-quality tasks enter **Reconciler** first
+-Reconciler-Responsible for finding the changed components
+-Renderer (renderer)-responsible for rendering the changed components to the page
 
-那么架构是如何体现在源码的文件结构上呢，让我们一起看看吧。
+So how is the architecture reflected in the file structure of the source code? Let's take a look.
 
-## 顶层目录
+## Top level directory
 
-除去配置文件和隐藏文件夹，根目录的文件夹包括三个：
+Excluding configuration files and hidden folders, there are three folders in the root directory:
 
 ```
-根目录
-├── fixtures        # 包含一些给贡献者准备的小型 React 测试项目
-├── packages        # 包含元数据（比如 package.json）和 React 仓库中所有 package 的源码（子目录 src）
-├── scripts         # 各种工具链的脚本，比如git、jest、eslint等
+Root directory
+├── fixtures # Contains some small React test projects for contributors
+├── packages # Contains metadata (such as package.json) and the source code of all packages in the React warehouse (subdirectory src)
+├── scripts # Scripts of various tool chains, such as git, jest, eslint, etc.
 ```
 
-这里我们关注**packages**目录
+Here we focus on the **packages** directory
 
-## packages目录
+## packages directory
 
-目录下的文件夹非常多，我们来看下：
+There are many folders in the directory, let's take a look:
 
-### [react](https://github.com/facebook/react/tree/master/packages/react)文件夹
+### [react](https://github.com/facebook/react/tree/master/packages/react) folder
 
-React的核心，包含所有全局 React API，如：
+The core of React, including all global React APIs, such as:
 
-- React.createElement
-- React.Component
-- React.Children
+-React.createElement
+-React.Component
+-React.Children
 
-这些 API 是全平台通用的，它不包含`ReactDOM`、`ReactNative`等平台特定的代码。在 NPM 上作为[单独的一个包](https://www.npmjs.com/package/react)发布。
+These APIs are common to all platforms, and they do not contain platform-specific codes such as `ReactDOM` and `ReactNative`. Published on NPM as [a separate package](https://www.npmjs.com/package/react).
 
-### [scheduler](https://github.com/facebook/react/tree/master/packages/scheduler)文件夹
+### [scheduler](https://github.com/facebook/react/tree/master/packages/scheduler) folder
 
-Scheduler（调度器）的实现。
+Implementation of Scheduler (Scheduler).
 
-### [shared](https://github.com/facebook/react/tree/master/packages/shared)文件夹
+### [shared](https://github.com/facebook/react/tree/master/packages/shared) folder
 
-源码中其他模块公用的**方法**和**全局变量**，比如在[shared/ReactSymbols.js](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/shared/ReactSymbols.js)中保存`React`不同组件类型的定义。
+**Methods** and **Global variables** common to other modules in the source code, such as in [shared/ReactSymbols.js](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/shared/ReactSymbols .js) save the definition of the different component types of `React`.
 
 ```js
 // ...
@@ -49,43 +49,43 @@ export let REACT_FRAGMENT_TYPE = 0xeacb;
 // ...
 ```
 
-### Renderer相关的文件夹
+### Renderer related folders
 
-如下几个文件夹为对应的**Renderer**
-
-```
-- react-art
-- react-dom                 # 注意这同时是DOM和SSR（服务端渲染）的入口
-- react-native-renderer
-- react-noop-renderer       # 用于debug fiber（后面会介绍fiber）
-- react-test-renderer
-```
-
-### 试验性包的文件夹
-
-`React`将自己流程中的一部分抽离出来，形成可以独立使用的包，由于他们是试验性质的，所以不被建议在生产环境使用。包括如下文件夹：
+The following folders are the corresponding **Renderer**
 
 ```
-- react-server        # 创建自定义SSR流
-- react-client        # 创建自定义的流
-- react-fetch         # 用于数据请求
-- react-interactions  # 用于测试交互相关的内部特性，比如React的事件模型
-- react-reconciler    # Reconciler的实现，你可以用他构建自己的Renderer
+-react-art
+-react-dom # Note that this is the entrance to both DOM and SSR (server rendering)
+-react-native-renderer
+-react-noop-renderer # for debug fiber (fiber will be introduced later)
+-react-test-renderer
 ```
 
-### 辅助包的文件夹
+### Experimental package folder
 
-`React`将一些辅助功能形成单独的包。包括如下文件夹：
+`React` extracts part of its own process to form a package that can be used independently. Because they are experimental in nature, they are not recommended to be used in a production environment. Include the following folders:
 
 ```
-- react-is       # 用于测试组件是否是某类型
-- react-client   # 创建自定义的流
-- react-fetch    # 用于数据请求
-- react-refresh  # “热重载”的React官方实现
+-react-server # Create a custom SSR stream
+-react-client # Create a custom stream
+-react-fetch # For data request
+-react-interactions # Used to test interaction-related internal features, such as React's event model
+-react-reconciler # The realization of Reconciler, you can use it to build your own Renderer
 ```
 
-### [react-reconciler](https://github.com/facebook/react/tree/master/packages/react-reconciler)文件夹
+### Auxiliary package folder
 
-我们需要重点关注**react-reconciler**，在接下来源码学习中 80%的代码量都来自这个包。
+`React` forms some auxiliary functions into a separate package. Include the following folders:
 
-虽然他是一个实验性的包，内部的很多功能在正式版本中还未开放。但是他一边对接**Scheduler**，一边对接不同平台的**Renderer**，构成了整个 React16 的架构体系。
+```
+-react-is # Used to test whether the component is of a certain type
+-react-client # Create a custom stream
+-react-fetch # For data request
+-react-refresh # The official implementation of "hot reload" in React
+```
+
+### [react-reconciler](https://github.com/facebook/react/tree/master/packages/react-reconciler) folder
+
+We need to focus on **react-reconciler**, 80% of the code volume in the next source code learning comes from this package.
+
+Although it is an experimental package, many internal functions have not yet been opened in the official version. But he docked **Scheduler** while docking **Renderer** of different platforms, forming the entire React16 architecture system.

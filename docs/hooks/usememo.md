@@ -1,6 +1,6 @@
-在了解其他`hook`的实现后，理解`useMemo`与`useCallback`的实现非常容易。
+After understanding the implementation of other `hook`, it is very easy to understand the implementation of `useMemo` and `useCallback`.
 
-本节我们以`mount`与`update`两种情况分别讨论这两个`hook`。
+In this section, we will discuss the two `hooks` separately in the case of `mount` and `update`.
 
 ## mount
 
@@ -9,31 +9,31 @@ function mountMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
-  // 创建并返回当前hook
+  // Create and return the current hook
   const hook = mountWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
-  // 计算value
+  const nextDeps = deps === undefined? null: deps;
+  // Calculate value
   const nextValue = nextCreate();
-  // 将value与deps保存在hook.memoizedState
+  // Save value and deps in hook.memoizedState
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
 }
 
 function mountCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
-  // 创建并返回当前hook
+  // Create and return the current hook
   const hook = mountWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
-  // 将value与deps保存在hook.memoizedState
+  const nextDeps = deps === undefined? null: deps;
+  // Save value and deps in hook.memoizedState
   hook.memoizedState = [callback, nextDeps];
   return callback;
 }
 ```
 
-可以看到，与`mountCallback`这两个唯一的区别是
+As you can see, the only difference with `mountCallback` is
 
-- `mountMemo`会将`回调函数`(nextCreate)的执行结果作为`value`保存
+-`mountMemo` will save the execution result of `callback function` (nextCreate) as `value`
 
-- `mountCallback`会将`回调函数`作为`value`保存
+-`mountCallback` will save the `callback function` as `value`
 
 ## update
 
@@ -42,48 +42,48 @@ function updateMemo<T>(
   nextCreate: () => T,
   deps: Array<mixed> | void | null,
 ): T {
-  // 返回当前hook
+  // return the current hook
   const hook = updateWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
+  const nextDeps = deps === undefined? null: deps;
   const prevState = hook.memoizedState;
 
   if (prevState !== null) {
     if (nextDeps !== null) {
       const prevDeps: Array<mixed> | null = prevState[1];
-      // 判断update前后value是否变化
+      // Determine whether the value changes before and after update
       if (areHookInputsEqual(nextDeps, prevDeps)) {
-        // 未变化
+        // unchanged
         return prevState[0];
       }
     }
   }
-  // 变化，重新计算value
+  // change, recalculate value
   const nextValue = nextCreate();
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
 }
 
 function updateCallback<T>(callback: T, deps: Array<mixed> | void | null): T {
-  // 返回当前hook
+  // return the current hook
   const hook = updateWorkInProgressHook();
-  const nextDeps = deps === undefined ? null : deps;
+  const nextDeps = deps === undefined? null: deps;
   const prevState = hook.memoizedState;
 
   if (prevState !== null) {
     if (nextDeps !== null) {
       const prevDeps: Array<mixed> | null = prevState[1];
-      // 判断update前后value是否变化
+      // Determine whether the value changes before and after update
       if (areHookInputsEqual(nextDeps, prevDeps)) {
-        // 未变化
+        // unchanged
         return prevState[0];
       }
     }
   }
 
-  // 变化，将新的callback作为value
+  // Change, use the new callback as the value
   hook.memoizedState = [callback, nextDeps];
   return callback;
 }
 ```
 
-可见，对于`update`，这两个`hook`的唯一区别也是**是回调函数本身还是回调函数的执行结果作为value**。
+It can be seen that for `update`, the only difference between the two `hooks` is whether it is the callback function itself or the execution result of the callback function as the value**.

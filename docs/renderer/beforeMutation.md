@@ -1,45 +1,45 @@
-在本节正式开始前，让我们复习下这一章到目前为止所学的。
+Before this section officially starts, let us review what we have learned so far in the next chapter.
 
-`Renderer`工作的阶段被称为`commit`阶段。`commit`阶段可以分为三个子阶段：
+The stage in which the `Renderer` works is called the `commit` stage. The `commit` phase can be divided into three sub-phases:
 
-- before mutation阶段（执行`DOM`操作前）
+-before mutation stage (before performing `DOM` operation)
 
-- mutation阶段（执行`DOM`操作）
+-Mutation phase (execute `DOM` operation)
 
-- layout阶段（执行`DOM`操作后）
+-Layout stage (after performing `DOM` operation)
 
-本节我们看看`before mutation阶段`（执行`DOM`操作前）都做了什么。
+In this section, we look at what is done in the `before mutation phase` (before performing the `DOM` operation).
 
-## 概览
+## Overview
 
-`before mutation阶段`的代码很短，整个过程就是遍历`effectList`并调用`commitBeforeMutationEffects`函数处理。
+The code of the `before mutation phase` is very short, the whole process is to traverse the `effectList` and call the `commitBeforeMutationEffects` function to process.
 
-> 这部分[源码在这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2104-L2127)。为了增加可读性，示例代码中删除了不相关的逻辑
+> This part [source code is here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2104-L2127). To increase readability, irrelevant logic has been removed from the sample code
 
 ```js
-// 保存之前的优先级，以同步优先级执行，执行完毕后恢复之前优先级
+// Save the previous priority, execute it at the synchronization priority, and restore the previous priority after execution
 const previousLanePriority = getCurrentUpdateLanePriority();
 setCurrentUpdateLanePriority(SyncLanePriority);
 
-// 将当前上下文标记为CommitContext，作为commit阶段的标志
+// Mark the current context as CommitContext as a sign of the commit phase
 const prevExecutionContext = executionContext;
 executionContext |= CommitContext;
 
-// 处理focus状态
+// handle the focus state
 focusedInstanceHandle = prepareForCommit(root.containerInfo);
 shouldFireAfterActiveInstanceBlur = false;
 
-// beforeMutation阶段的主函数
+// The main function of the beforeMutation stage
 commitBeforeMutationEffects(finishedWork);
 
 focusedInstanceHandle = null;
 ```
 
-我们重点关注`beforeMutation`阶段的主函数`commitBeforeMutationEffects`做了什么。
+We focus on what the main function `commitBeforeMutationEffects` does in the `beforeMutation` stage.
 
 ## commitBeforeMutationEffects
 
-大体代码逻辑：
+General code logic:
 
 ```js
 function commitBeforeMutationEffects() {
@@ -47,17 +47,17 @@ function commitBeforeMutationEffects() {
     const current = nextEffect.alternate;
 
     if (!shouldFireAfterActiveInstanceBlur && focusedInstanceHandle !== null) {
-      // ...focus blur相关
+      // ...focus blur related
     }
 
     const effectTag = nextEffect.effectTag;
 
-    // 调用getSnapshotBeforeUpdate
+    // call getSnapshotBeforeUpdate
     if ((effectTag & Snapshot) !== NoEffect) {
       commitBeforeMutationEffectOnFiber(current, nextEffect);
     }
 
-    // 调度useEffect
+    // Scheduling useEffect
     if ((effectTag & Passive) !== NoEffect) {
       if (!rootDoesHavePassiveEffects) {
         rootDoesHavePassiveEffects = true;
@@ -72,48 +72,48 @@ function commitBeforeMutationEffects() {
 }
 ```
 
-整体可以分为三部分：
+The whole can be divided into three parts:
 
-1. 处理`DOM节点`渲染/删除后的 `autoFocus`、`blur` 逻辑。
+1. Process the `autoFocus` and `blur` logic after rendering/deleting the `DOM node`.
 
-2. 调用`getSnapshotBeforeUpdate`生命周期钩子。
+2. Call the `getSnapshotBeforeUpdate` life cycle hook.
 
-3. 调度`useEffect`。
+3. Schedule `useEffect`.
 
-我们讲解下2、3两点。
+Let's explain the next 2 and 3 points.
 
-## 调用getSnapshotBeforeUpdate
+## Call getSnapshotBeforeUpdate
 
-`commitBeforeMutationEffectOnFiber`是`commitBeforeMutationLifeCycles`的别名。
+`commitBeforeMutationEffectOnFiber` is an alias of `commitBeforeMutationLifeCycles`.
 
-在该方法内会调用`getSnapshotBeforeUpdate`。
+In this method, `getSnapshotBeforeUpdate` is called.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L222)看到这段逻辑
+> You can see this logic in [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L222)
 
-从`React`v16开始，`componentWillXXX`钩子前增加了`UNSAFE_`前缀。
+Starting with `React`v16, `UNSAFE_` prefix is ​​added before the `componentWillXXX` hook.
 
-究其原因，是因为`Stack Reconciler`重构为`Fiber Reconciler`后，`render阶段`的任务可能中断/重新开始，对应的组件在`render阶段`的生命周期钩子（即`componentWillXXX`）可能触发多次。
+The reason is that after `Stack Reconciler` is refactored to `Fiber Reconciler`, the tasks in the `render phase` may be interrupted/restarted, and the corresponding component may be hooked in the life cycle of the `render phase` (ie `componentWillXXX`) Triggered multiple times.
 
-这种行为和`React`v15不一致，所以标记为`UNSAFE_`。
+This behavior is inconsistent with `React`v15, so it is marked as `UNSAFE_`.
 
-> 更详细的解释参照[这里](https://juejin.im/post/6847902224287285255#comment)
+> For more detailed explanation, please refer to [here](https://juejin.im/post/6847902224287285255#comment)
 
-为此，`React`提供了替代的生命周期钩子`getSnapshotBeforeUpdate`。
+To this end, `React` provides an alternative lifecycle hook `getSnapshotBeforeUpdate`.
 
-我们可以看见，`getSnapshotBeforeUpdate`是在`commit阶段`内的`before mutation阶段`调用的，由于`commit阶段`是同步的，所以不会遇到多次调用的问题。
+We can see that `getSnapshotBeforeUpdate` is called in the `before mutation phase` in the `commit phase`. Since the `commit phase` is synchronized, there is no problem of multiple calls.
 
 
-## 调度`useEffect`
+## Scheduling `useEffect`
 
-在这几行代码内，`scheduleCallback`方法由`Scheduler`模块提供，用于以某个优先级异步调度一个回调函数。
+In these few lines of code, the `scheduleCallback` method is provided by the `Scheduler` module, which is used to schedule a callback function asynchronously with a certain priority.
 
 ```js
-// 调度useEffect
+// Scheduling useEffect
 if ((effectTag & Passive) !== NoEffect) {
   if (!rootDoesHavePassiveEffects) {
     rootDoesHavePassiveEffects = true;
     scheduleCallback(NormalSchedulerPriority, () => {
-      // 触发useEffect
+      // trigger useEffect
       flushPassiveEffects();
       return null;
     });
@@ -121,34 +121,34 @@ if ((effectTag & Passive) !== NoEffect) {
 }
 ```
 
-在此处，被异步调度的回调函数就是触发`useEffect`的方法`flushPassiveEffects`。
+Here, the callback function that is asynchronously scheduled is the method `flushPassiveEffects` that triggers the `useEffect`.
 
-我们接下来讨论`useEffect`如何被异步调度，以及为什么要异步（而不是同步）调度。
+We next discuss how `useEffect` is dispatched asynchronously, and why it is dispatched asynchronously (rather than synchronously).
 
-### 如何异步调度
+### How to schedule asynchronously
 
-在`flushPassiveEffects`方法内部会从全局变量`rootWithPendingPassiveEffects`获取`effectList`。
+Inside the `flushPassiveEffects` method, the `effectList` is obtained from the global variable `rootWithPendingPassiveEffects`.
 
-关于`flushPassiveEffects`的具体讲解参照[useEffect与useLayoutEffect一节](../hooks/useeffect.html)
+For specific explanation of `flushPassiveEffects`, please refer to [useEffect and useLayoutEffect section](../hooks/useeffect.html)
 
-在[completeWork一节](../process/completeWork.html#effectlist)我们讲到，`effectList`中保存了需要执行副作用的`Fiber节点`。其中副作用包括
+In the [completeWork section](../process/completeWork.html#effectlist) we mentioned that the `effectList` stores the `Fiber nodes` that need to perform side effects. The side effects include
 
-- 插入`DOM节点`（Placement）
-- 更新`DOM节点`（Update）
-- 删除`DOM节点`（Deletion）
+-Insert `DOM Node` (Placement)
+-Update `DOM node` (Update)
+-Delete `DOM node` (Deletion)
 
-除此外，当一个`FunctionComponent`含有`useEffect`或`useLayoutEffect`，他对应的`Fiber节点`也会被赋值`effectTag`。
+In addition, when a `FunctionComponent` contains `useEffect` or `useLayoutEffect`, its corresponding `Fiber node` will also be assigned the value of `effectTag`.
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactHookEffectTags.js)看到`hook`相关的`effectTag`
+> You can see the `effectTag` related to `hook` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactHookEffectTags.js)
 
 
-在`flushPassiveEffects`方法内部会遍历`rootWithPendingPassiveEffects`（即`effectList`）执行`effect`回调函数。
+Inside the `flushPassiveEffects` method, the `rootWithPendingPassiveEffects` (ie `effectList`) will be traversed to execute the `effect` callback function.
 
-如果在此时直接执行，`rootWithPendingPassiveEffects === null`。
+If it is executed directly at this time, `rootWithPendingPassiveEffects === null`.
 
-那么`rootWithPendingPassiveEffects`会在何时赋值呢？
+So when will `rootWithPendingPassiveEffects` be assigned?
 
-在上一节`layout之后`的代码片段中会根据`rootDoesHavePassiveEffects === true?`决定是否赋值`rootWithPendingPassiveEffects`。
+In the code snippet of the previous section `after layout`, it will be determined whether to assign `rootWithPendingPassiveEffects` according to `rootDoesHavePassiveEffects === true?`.
 
 ```js
 const rootDidHavePassiveEffects = rootDoesHavePassiveEffects;
@@ -160,26 +160,26 @@ if (rootDoesHavePassiveEffects) {
 }
 ```
 
-所以整个`useEffect`异步调用分为三步：
+So the entire `useEffect` asynchronous call is divided into three steps:
 
-1. `before mutation阶段`在`scheduleCallback`中调度`flushPassiveEffects`
-2. `layout阶段`之后将`effectList`赋值给`rootWithPendingPassiveEffects`
-3. `scheduleCallback`触发`flushPassiveEffects`，`flushPassiveEffects`内部遍历`rootWithPendingPassiveEffects`
+1. The `before mutation phase` schedules `flushPassiveEffects` in `scheduleCallback`
+2. After the `layout stage`, assign `effectList` to `rootWithPendingPassiveEffects`
+3. `scheduleCallback` triggers `flushPassiveEffects`, `flushPassiveEffects` internally traverses `rootWithPendingPassiveEffects`
 
-### 为什么需要异步调用
+### Why do we need asynchronous calls
 
-摘录自`React`文档[effect 的执行时机](https://zh-hans.reactjs.org/docs/hooks-reference.html#timing-of-effects)：
+Excerpted from the `React` document [Execution timing of effect](https://zh-hans.reactjs.org/docs/hooks-reference.html#timing-of-effects):
 
-> 与 componentDidMount、componentDidUpdate 不同的是，在浏览器完成布局与绘制之后，传给 useEffect 的函数会延迟调用。这使得它适用于许多常见的副作用场景，比如设置订阅和事件处理等情况，因此不应在函数中执行阻塞浏览器更新屏幕的操作。
+> Unlike componentDidMount and componentDidUpdate, after the browser completes the layout and drawing, the function passed to useEffect will be called delayed. This makes it suitable for many common side-effect scenarios, such as setting up subscriptions and event handling, so operations that block the browser from updating the screen should not be performed in the function.
 
-可见，`useEffect`异步执行的原因主要是防止同步执行时阻塞浏览器渲染。
+It can be seen that the main reason for the asynchronous execution of `useEffect` is to prevent blocking the browser rendering during synchronous execution.
 
-## 总结
+## Summarize
 
-经过本节学习，我们知道了在`before mutation阶段`，会遍历`effectList`，依次执行：
+After studying in this section, we know that in the `before mutation stage`, the `effectList` will be traversed and executed in turn:
 
-1. 处理`DOM节点`渲染/删除后的 `autoFocus`、`blur`逻辑
+1. Process the `autoFocus` and `blur` logic after rendering/deleting of `DOM node`
 
-2. 调用`getSnapshotBeforeUpdate`生命周期钩子
+2. Call the `getSnapshotBeforeUpdate` life cycle hook
 
-3. 调度`useEffect`
+3. Scheduling `useEffect`

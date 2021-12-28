@@ -1,24 +1,24 @@
-对于单个节点，我们以类型`object`为例，会进入`reconcileSingleElement`
+For a single node, we take the type `object` as an example, and enter `reconcileSingleElement`
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1141)看到`reconcileSingleElement`源码
+> You can see the source code of `reconcileSingleElement` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactChildFiber.new.js#L1141)
 
 ```javascript
-  const isObject = typeof newChild === 'object' && newChild !== null;
+  const isObject = typeof newChild ==='object' && newChild !== null;
 
   if (isObject) {
-    // 对象类型，可能是 REACT_ELEMENT_TYPE 或 REACT_PORTAL_TYPE
+    // Object type, it may be REACT_ELEMENT_TYPE or REACT_PORTAL_TYPE
     switch (newChild.$$typeof) {
       case REACT_ELEMENT_TYPE:
-        // 调用 reconcileSingleElement 处理
-      // ...其他case
+        // call reconcileSingleElement to process
+      // ...other case
     }
   }
 ```
-这个函数会做如下事情：
+This function will do the following:
 
 <img :src="$withBase('/img/diff.png')" alt="diff">
 
-让我们看看第二步**判断DOM节点是否可以复用**是如何实现的。
+Let us see how the second step **determine whether the DOM node can be reused** is achieved.
 
 ```javascript
 function reconcileSingleElement(
@@ -29,119 +29,119 @@ function reconcileSingleElement(
   const key = element.key;
   let child = currentFirstChild;
   
-  // 首先判断是否存在对应DOM节点
+  // First determine whether there is a corresponding DOM node
   while (child !== null) {
-    // 上一次更新存在DOM节点，接下来判断是否可复用
+    // The DOM node exists in the last update, and then determine whether it can be reused
 
-    // 首先比较key是否相同
+    // First compare whether the keys are the same
     if (child.key === key) {
 
-      // key相同，接下来比较type是否相同
+      // The key is the same, then compare whether the type is the same
 
       switch (child.tag) {
-        // ...省略case
+        // ... omitted case
         
         default: {
           if (child.elementType === element.type) {
-            // type相同则表示可以复用
-            // 返回复用的fiber
+            // The same type means it can be reused
+            // Return the reused fiber
             return existing;
           }
           
-          // type不同则跳出switch
+          // If the type is different, jump out of the switch
           break;
         }
       }
-      // 代码执行到这里代表：key相同但是type不同
-      // 将该fiber及其兄弟fiber标记为删除
+      // The code execution here means: the key is the same but the type is different
+      // Mark the fiber and its sibling fiber for deletion
       deleteRemainingChildren(returnFiber, child);
       break;
     } else {
-      // key不同，将该fiber标记为删除
+      // If the key is different, mark the fiber for deletion
       deleteChild(returnFiber, child);
     }
     child = child.sibling;
   }
 
-  // 创建新Fiber，并返回 ...省略
+  // Create a new Fiber, and return ... omitted
 }
 ```
 
-还记得我们刚才提到的，React预设的限制么，
+Remember what we just mentioned, the preset limitations of React,
 
-从代码可以看出，React通过先判断`key`是否相同，如果`key`相同则判断`type`是否相同，只有都相同时一个`DOM节点`才能复用。
+It can be seen from the code that React first judges whether the `key` is the same, and if the `key` is the same, it judges whether the `type` is the same. Only when the same is the same, a `DOM node` can be reused.
 
-这里有个细节需要关注下：
+Here is a detail to pay attention to:
 
-- 当`child !== null`且`key相同`且`type不同`时执行`deleteRemainingChildren`将`child`及其兄弟`fiber`都标记删除。
+-When `child !== null` and `key is the same` and `type is different`, execute `deleteRemainingChildren` to mark both `child` and its brother `fiber` for deletion.
 
-- 当`child !== null`且`key不同`时仅将`child`标记删除。
+-When `child !== null` and `keys are different`, only the `child` tag is deleted.
 
-考虑如下例子：
+Consider the following example:
 
-当前页面有3个`li`，我们要全部删除，再插入一个`p`。
+There are 3 `li`s on the current page, we want to delete them all, and then insert a `p`.
 
 ```js
-// 当前页面显示的
-ul > li * 3
+// Displayed on the current page
+ul> li * 3
 
-// 这次需要更新的
-ul > p
+// need to be updated this time
+ul> p
 ```
 
-由于本次更新时只有一个`p`，属于单一节点的`Diff`，会走上面介绍的代码逻辑。
+Since there is only one `p` in this update, `Diff` belonging to a single node will follow the code logic introduced above.
 
-在`reconcileSingleElement`中遍历之前的3个`fiber`（对应的`DOM`为3个`li`），寻找本次更新的`p`是否可以复用之前的3个`fiber`中某个的`DOM`。
+Traverse the previous 3 `fiber` in `reconcileSingleElement` (the corresponding `DOM` is 3 `li`), and find out whether the updated `p` can reuse one of the previous 3 `fiber` `DOM`.
 
-当`key相同`且`type不同`时，代表我们已经找到本次更新的`p`对应的上次的`fiber`，但是`p`与`li` `type`不同，不能复用。既然唯一的可能性已经不能复用，则剩下的`fiber`都没有机会了，所以都需要标记删除。
+When `keys are the same` and `types are different`, it means that we have found the last `fiber` corresponding to the updated `p`, but `p` and `li` `type` are different and cannot be reused. Since the only possibility can no longer be reused, the remaining `fiber` has no chance, so all need to be marked for deletion.
 
-当`key不同`时只代表遍历到的该`fiber`不能被`p`复用，后面还有兄弟`fiber`还没有遍历到。所以仅仅标记该`fiber`删除。
+When `keys are different`, it only means that the traversed `fiber` cannot be reused by `p`, and there is a brother `fiber` that has not been traversed yet. So just mark the `fiber` for deletion.
 
 
-## 练习题
-让我们来做几道习题巩固下吧：
+## Practice questions
+Let us do a few exercises to consolidate it:
 
-请判断如下`JSX对象`对应的`DOM`元素是否可以复用：
+Please judge whether the `DOM` element corresponding to the following `JSX object` can be reused:
 
 ```jsx
-// 习题1 更新前
+// Exercise 1 before update
 <div>ka song</div>
-// 更新后
+// Updated
 <p>ka song</p>
 
-// 习题2 更新前
+// Exercise 2 before update
 <div key="xxx">ka song</div>
-// 更新后
+// Updated
 <div key="ooo">ka song</div>
 
-// 习题3 更新前
+// Exercise 3 before update
 <div key="xxx">ka song</div>
-// 更新后
+// Updated
 <p key="ooo">ka song</p>
 
-// 习题4 更新前
+// Exercise 4 before update
 <div key="xxx">ka song</div>
-// 更新后
+// Updated
 <div key="xxx">xiao bei</div>
 
 ```
 
-。
+.
 
-。
+.
 
-。
+.
 
-。
+.
 
-公布答案：
+Announce the answer:
 
-习题1: 未设置`key prop`默认 `key = null;`，所以更新前后key相同，都为`null`，但是更新前`type`为`div`，更新后为`p`，`type`改变则不能复用。
+Exercise 1: `key prop` is not set by default.`key = null;`, so the key before and after the update is the same, both are `null`, but before the update, the `type` is `div`, after the update, it is `p`, `type` Changes cannot be reused.
 
-习题2: 更新前后`key`改变，不需要再判断`type`，不能复用。
+Exercise 2: The `key` changes before and after the update, there is no need to judge the `type`, and it cannot be reused.
 
-习题3: 更新前后`key`改变，不需要再判断`type`，不能复用。
+Exercise 3: The `key` changes before and after the update, there is no need to judge the `type`, and it cannot be reused.
 
-习题4: 更新前后`key`与`type`都未改变，可以复用。`children`变化，`DOM`的子元素需要更新。
+Exercise 4: Before and after the update, both `key` and `type` have not changed and can be reused. `Children` changes, the child elements of `DOM` need to be updated.
 
-你是不是都答对了呢。
+Did you get all the answers right?

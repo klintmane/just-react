@@ -1,9 +1,9 @@
-我热爱编程，不想上班，关注我的公众号，能收获：
+I love programming, don’t want to go to work, pay attention to my official account, can gain:
 
-- 深入`React`技术栈的原创**视频**和**文章**
+-In-depth original **video** and **article** of the `React` technology stack
 
-- 我为了不上班都做了什么，没准儿你也可以借鉴
+-What did I do not to go to work, maybe you can learn from it too
 
-- 拉你进`人类高质量前端框架交流群`和小伙伴们一起交流框架的方方面面
+-Pull you into the `Human high-quality front-end framework exchange group` and communicate with friends on all aspects of the framework
 
 <img style="width: 200px;height:200px;" :src="$withBase('/img/qrcode-fe.jpg')" alt="30sec">

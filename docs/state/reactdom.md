@@ -1,15 +1,15 @@
-经过五章的学习，我们终于回到了`React`应用的起点。
+After five chapters of learning, we finally returned to the starting point of the `React` application.
 
-这一节我们完整的走通`ReactDOM.render`完成页面渲染的整个流程。
+In this section, we will walk through `ReactDOM.render` to complete the entire process of page rendering.
 
-## 创建fiber
+## Create fiber
 
-从[双缓存机制一节](../process/doubleBuffer.html#mount时)我们知道，首次执行`ReactDOM.render`会创建`fiberRootNode`和`rootFiber`。其中`fiberRootNode`是整个应用的根节点，`rootFiber`是要渲染组件所在组件树的`根节点`。
+From the section of [Double Buffer Mechanism](../process/doubleBuffer.html#mount), we know that the first execution of `ReactDOM.render` will create `fiberRootNode` and `rootFiber`. Among them, `fiberRootNode` is the root node of the entire application, and `rootFiber` is the `root node` of the component tree where the component is to be rendered.
 
-这一步发生在调用`ReactDOM.render`后进入的`legacyRenderSubtreeIntoContainer`方法中。
+This step occurs in the `legacyRenderSubtreeIntoContainer` method entered after calling `ReactDOM.render`.
 
 ```js
-// container指ReactDOM.render的第二个参数（即应用挂载的DOM节点）
+// container refers to the second parameter of ReactDOM.render (ie the DOM node mounted by the application)
 root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
   container,
   forceHydrate,
@@ -17,9 +17,9 @@ root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
 fiberRoot = root._internalRoot;
 ```
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-dom/src/client/ReactDOMLegacy.js#L193)看到这一步的代码
+> You can see the code for this step from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-dom/src/client/ReactDOMLegacy.js#L193)
 
-`legacyCreateRootFromDOMContainer`方法内部会调用`createFiberRoot`方法完成`fiberRootNode`和`rootFiber`的创建以及关联。并初始化`updateQueue`。
+The `legacyCreateRootFromDOMContainer` method internally calls the `createFiberRoot` method to complete the creation and association of `fiberRootNode` and `rootFiber`. And initialize `updateQueue`.
 
 ```js
 export function createFiberRoot(
@@ -28,34 +28,34 @@ export function createFiberRoot(
   hydrate: boolean,
   hydrationCallbacks: null | SuspenseHydrationCallbacks,
 ): FiberRoot {
-  // 创建fiberRootNode
+  // Create fiberRootNode
   const root: FiberRoot = (new FiberRootNode(containerInfo, tag, hydrate): any);
   
-  // 创建rootFiber
+  // Create rootFiber
   const uninitializedFiber = createHostRootFiber(tag);
 
-  // 连接rootFiber与fiberRootNode
+  // Connect rootFiber and fiberRootNode
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root;
 
-  // 初始化updateQueue
+  // Initialize updateQueue
   initializeUpdateQueue(uninitializedFiber);
 
   return root;
 }
 ```
 
-根据以上代码，现在我们可以在[双缓存机制一节](../process/doubleBuffer.html#mount时)基础上补充上`rootFiber`到`fiberRootNode`的引用。
+Based on the above code, now we can add references from `rootFiber` to `fiberRootNode` on the basis of [Double Buffer Mechanism](../process/doubleBuffer.html#mount).
 
 <img :src="$withBase('/img/fiberroot.png')" alt="fiberRoot">
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberRoot.new.js#L97)看到这一步的代码
+> You can see the code for this step from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberRoot.new.js#L97)
 
-## 创建update
+## Create update
 
-我们已经做好了组件的初始化工作，接下来就等待创建`Update`来开启一次更新。
+We have completed the initialization of the component, and then wait for the creation of `Update` to start an update.
 
-这一步发生在`updateContainer`方法中。
+This step occurs in the `updateContainer` method.
 
 ```js
 export function updateContainer(
@@ -64,117 +64,117 @@ export function updateContainer(
   parentComponent: ?React$Component<any, any>,
   callback: ?Function,
 ): Lane {
-  // ...省略与逻辑不相关代码
+  // ...omit code not related to logic
 
-  // 创建update
+  // Create update
   const update = createUpdate(eventTime, lane, suspenseConfig);
   
-  // update.payload为需要挂载在根节点的组件
+  // update.payload is a component that needs to be mounted on the root node
   update.payload = {element};
 
-  // callback为ReactDOM.render的第三个参数 —— 回调函数
-  callback = callback === undefined ? null : callback;
+  // callback is the third parameter of ReactDOM.render-callback function
+  callback = callback === undefined? null: callback;
   if (callback !== null) {
     update.callback = callback;
   }
 
-  // 将生成的update加入updateQueue
+  // Add the generated update to updateQueue
   enqueueUpdate(current, update);
-  // 调度更新
+  // schedule update
   scheduleUpdateOnFiber(current, lane, eventTime);
 
-  // ...省略与逻辑不相关代码
+  // ...omit code not related to logic
 }
 ```
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberReconciler.new.js#L255)看到`updateContainer`的代码
+> You can see the code of `updateContainer` from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberReconciler.new.js#L255)
 
-值得注意的是其中`update.payload = {element};`
+It is worth noting that `update.payload = {element};`
 
-这就是我们在[Update一节](./update.html#update的结构)介绍的，对于`HostRoot`，`payload`为`ReactDOM.render`的第一个传参。
+This is what we introduced in the [Update section](the structure of./update.html#update). For `HostRoot`, `payload` is the first parameter of `ReactDOM.render`.
 
-## 流程概览
+## Process overview
 
-至此，`ReactDOM.render`的流程就和我们已知的流程连接上了。
+At this point, the process of `ReactDOM.render` is connected to the process we already know.
 
-整个流程如下：
+The whole process is as follows:
 
 ```sh
-创建fiberRootNode、rootFiber、updateQueue（`legacyCreateRootFromDOMContainer`）
+Create fiberRootNode, rootFiber, updateQueue (`legacyCreateRootFromDOMContainer`)
 
     |
     |
     v
 
-创建Update对象（`updateContainer`）
+Create an Update object (`updateContainer`)
 
     |
     |
     v
 
-从fiber到root（`markUpdateLaneFromFiberToRoot`）
+From fiber to root (`markUpdateLaneFromFiberToRoot`)
 
     |
     |
     v
 
-调度更新（`ensureRootIsScheduled`）
+Schedule update (`ensureRootIsScheduled`)
 
     |
     |
     v
 
-render阶段（`performSyncWorkOnRoot` 或 `performConcurrentWorkOnRoot`）
+render phase (`performSyncWorkOnRoot` or `performConcurrentWorkOnRoot`)
 
     |
     |
     v
 
-commit阶段（`commitRoot`）
+commit phase (`commitRoot`)
 ```
 
-## React的其他入口函数
+## Other entry functions of React
 
-当前`React`共有三种模式：
+There are currently three modes of `React`:
 
-- `legacy`，这是当前`React`使用的方式。当前没有计划删除本模式，但是这个模式可能不支持一些新功能。
+-`legacy`, this is the current method used by `React`. There are currently no plans to remove this mode, but this mode may not support some new features.
 
-- `blocking`，开启部分`concurrent`模式特性的中间模式。目前正在实验中。作为迁移到`concurrent`模式的第一个步骤。
+-`blocking`, an intermediate mode that enables some features of `concurrent` mode. Currently in experiment. As the first step in migrating to `concurrent` mode.
 
-- `concurrent`，面向未来的开发模式。我们之前讲的`任务中断/任务优先级`都是针对`concurrent`模式。
+-`concurrent`, a future-oriented development model. The `task interrupt/task priority` we talked about before are all aimed at the `concurrent` mode.
 
-你可以从下表看出各种模式对特性的支持：
+You can see the feature support of various modes from the following table:
 
-|   | legacy 模式  | blocking 模式  | concurrent 模式  |
-|---  |---  |---  |---  |
-|[String Refs](https://zh-hans.reactjs.org/docs/refs-and-the-dom.html#legacy-api-string-refs)  |✅  |🚫**  |🚫**  |
-|[Legacy Context](https://zh-hans.reactjs.org/docs/legacy-context.html) |✅  |🚫**  |🚫**  |
-|[findDOMNode](https://zh-hans.reactjs.org/docs/strict-mode.html#warning-about-deprecated-finddomnode-usage)  |✅  |🚫**  |🚫**  |
-|[Suspense](https://zh-hans.reactjs.org/docs/concurrent-mode-suspense.html#what-is-suspense-exactly) |✅  |✅  |✅  |
-|[SuspenseList](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#suspenselist) |🚫  |✅  |✅  |
-|Suspense SSR + Hydration |🚫  |✅  |✅  |
-|Progressive Hydration  |🚫  |✅  |✅  |
-|Selective Hydration  |🚫  |🚫  |✅  |
-|Cooperative Multitasking |🚫  |🚫  |✅  |
-|Automatic batching of multiple setStates     |🚫* |✅  |✅  |
-|[Priority-based Rendering](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#splitting-high-and-low-priority-state) |🚫  |🚫  |✅  |
-|[Interruptible Prerendering](https://zh-hans.reactjs.org/docs/concurrent-mode-intro.html#interruptible-rendering) |🚫  |🚫  |✅  |
-|[useTransition](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#transitions)  |🚫  |🚫  |✅  |
-|[useDeferredValue](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#deferring-a-value) |🚫  |🚫  |✅  |
-|[Suspense Reveal "Train"](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#suspense-reveal-train)  |🚫  |🚫  |✅  |
+| | legacy mode | blocking mode | concurrent mode |
+|--- |--- |--- |--- |
+|[String Refs](https://zh-hans.reactjs.org/docs/refs-and-the-dom.html#legacy-api-string-refs) |✅ |🚫** |🚫** |
+|[Legacy Context](https://zh-hans.reactjs.org/docs/legacy-context.html) |✅ |🚫** |🚫** |
+|[findDOMNode](https://zh-hans.reactjs.org/docs/strict-mode.html#warning-about-deprecated-finddomnode-usage) |✅ |🚫** |🚫** |
+|[Suspense](https://zh-hans.reactjs.org/docs/concurrent-mode-suspense.html#what-is-suspense-exactly) |✅ |✅ |✅ |
+|[SuspenseList](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#suspenselist) |🚫 |✅ |✅ |
+|Suspense SSR + Hydration |🚫 |✅ |✅ |
+|Progressive Hydration |🚫 |✅ |✅ |
+|Selective Hydration |🚫 |🚫 |✅ |
+|Cooperative Multitasking |🚫 |🚫 |✅ |
+|Automatic batching of multiple setStates|🚫* |✅ |✅ |
+|[Priority-based Rendering](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#splitting-high-and-low-priority-state) |🚫 |🚫 |✅ |
+|[Interruptible Prerendering](https://zh-hans.reactjs.org/docs/concurrent-mode-intro.html#interruptible-rendering) |🚫 |🚫 |✅ |
+|[useTransition](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#transitions) |🚫 |🚫 |✅ |
+|[useDeferredValue](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#deferring-a-value) |🚫 |🚫 |✅ |
+|[Suspense Reveal "Train"](https://zh-hans.reactjs.org/docs/concurrent-mode-patterns.html#suspense-reveal-train) |🚫 |🚫 |✅ |
 
-*：`legacy`模式在合成事件中有自动批处理的功能，但仅限于一个浏览器任务。非`React`事件想使用这个功能必须使用 `unstable_batchedUpdates`。在`blocking`模式和`concurrent`模式下，所有的`setState`在默认情况下都是批处理的。
+*: The `legacy` mode has the function of automatic batch processing in the synthesis event, but it is limited to one browser task. If you want to use this function for non-`React` events, you must use `unstable_batchedUpdates`. In `blocking` mode and `concurrent` mode, all `setState` are batched by default.
 
-**：会在开发中发出警告。
+**: A warning will be issued during development.
 
-模式的变化影响整个应用的工作方式，所以无法只针对某个组件开启不同模式。
+The change of mode affects the way the entire application works, so it is not possible to enable different modes for only one component.
 
-基于此原因，可以通过不同的`入口函数`开启不同模式：
+For this reason, different modes can be opened through different `entry functions`:
 
-- `legacy` -- `ReactDOM.render(<App />, rootNode)`
-- `blocking` -- `ReactDOM.createBlockingRoot(rootNode).render(<App />)`
-- `concurrent` -- `ReactDOM.createRoot(rootNode).render(<App />)`
+-`legacy` - `ReactDOM.render(<App />, rootNode)`
+-`blocking` - `ReactDOM.createBlockingRoot(rootNode).render(<App />)`
+-`concurrent` - `ReactDOM.createRoot(rootNode).render(<App />)`
 
-> 你可以在[这里](https://zh-hans.reactjs.org/docs/concurrent-mode-adoption.html#why-so-many-modes)看到`React`团队解释为什么会有这么多模式
+> You can see the `React` team explaining why there are so many model
 
-虽然不同模式的`入口函数`不同，但是他们仅对`fiber.mode`变量产生影响，对我们在[流程概览](./reactdom.html#流程概览)中描述的流程并无影响。
+Although the `entry functions` of different modes are different, they only affect the `fiber.mode` variables, and have no effect on the process described in [Process Overview](./reactdom.html#Process Overview).

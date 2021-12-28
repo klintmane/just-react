@@ -1,12 +1,12 @@
-该阶段之所以称为`layout`，因为该阶段的代码都是在`DOM`渲染完成（`mutation阶段`完成）后执行的。
+This stage is called `layout` because the code in this stage is executed after the rendering of the `DOM` is completed (the `mutation phase` is completed).
 
-该阶段触发的生命周期钩子和`hook`可以直接访问到已经改变后的`DOM`，即该阶段是可以参与`DOM layout`的阶段。
+The life cycle hooks and `hooks` triggered at this stage can directly access the changed `DOM`, that is, this stage is a stage that can participate in the `DOM layout`.
 
-## 概览
+## Overview
 
-与前两个阶段类似，`layout阶段`也是遍历`effectList`，执行函数。
+Similar to the first two stages, the `layout stage` also traverses the `effectList` and executes functions.
 
-具体执行的函数是`commitLayoutEffects`。
+The specific execution function is `commitLayoutEffects`.
 
 ```js
 root.current = finishedWork;
@@ -27,22 +27,22 @@ nextEffect = null;
 
 ## commitLayoutEffects
 
-代码如下：
+code show as below:
 
-> 你可以在[这里](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2302)看到`commitLayoutEffects`源码
+> You can see the source code of `commitLayoutEffects` in [here](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2302)
 
 ```js
 function commitLayoutEffects(root: FiberRoot, committedLanes: Lanes) {
   while (nextEffect !== null) {
     const effectTag = nextEffect.effectTag;
 
-    // 调用生命周期钩子和hook
+    // call life cycle hooks and hooks
     if (effectTag & (Update | Callback)) {
       const current = nextEffect.alternate;
       commitLayoutEffectOnFiber(root, current, nextEffect, committedLanes);
     }
 
-    // 赋值ref
+    // Assign ref
     if (effectTag & Ref) {
       commitAttachRef(nextEffect);
     }
@@ -52,21 +52,21 @@ function commitLayoutEffects(root: FiberRoot, committedLanes: Lanes) {
 }
 ```
 
-`commitLayoutEffects`一共做了两件事：
+`commitLayoutEffects` did two things in total:
 
-1. commitLayoutEffectOnFiber（调用`生命周期钩子`和`hook`相关操作）
+1. commitLayoutEffectOnFiber (call `lifecycle hook` and `hook` related operations)
 
-2. commitAttachRef（赋值 ref）
+2. commitAttachRef (assignment ref)
 
 ## commitLayoutEffectOnFiber
 
-`commitLayoutEffectOnFiber`方法会根据`fiber.tag`对不同类型的节点分别处理。
+The `commitLayoutEffectOnFiber` method will process different types of nodes separately according to `fiber.tag`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork.new.js#L459)看到`commitLayoutEffectOnFiber`源码（`commitLayoutEffectOnFiber`为别名，方法原名为`commitLifeCycles`）
+> You can see the source code of `commitLayoutEffectOnFiber` (`commitLayoutEffectOnFiber` Is an alias, the method was originally named `commitLifeCycles`)
 
-- 对于`ClassComponent`，他会通过`current === null?`区分是`mount`还是`update`，调用[`componentDidMount`](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork.new.js#L538)或[`componentDidUpdate`](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork.new.js#L592)。
+-For `ClassComponent`, he will distinguish between `mount` and `update` by `current === null?`, and call [`componentDidMount`](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/ packages/react-reconciler/src/ReactFiberCommitWork.new.js#L538) or [`componentDidUpdate`](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork. .js#L592).
 
-触发`状态更新`的`this.setState`如果赋值了第二个参数`回调函数`，也会在此时调用。
+If the `this.setState` that triggers the `state update` is assigned the second parameter `callback function`, it will also be called at this time.
 
 ```js
 this.setState({ xxx: 1 }, () => {
@@ -74,36 +74,36 @@ this.setState({ xxx: 1 }, () => {
 });
 ```
 
-- 对于`FunctionComponent`及相关类型，他会调用`useLayoutEffect hook`的`回调函数`，调度`useEffect`的`销毁`与`回调`函数
+-For `FunctionComponent` and related types, he will call the `callback function` of `useLayoutEffect hook`, and schedule the `destroy` and `callback` functions of `useEffect`
 
-> `相关类型`指特殊处理后的`FunctionComponent`，比如`ForwardRef`、`React.memo`包裹的`FunctionComponent`
+> `Related type` refers to the special processed `FunctionComponent`, such as `ForwardRef`, `FunctionComponent` packaged by `React.memo`
 
 ```js
   switch (finishedWork.tag) {
-    // 以下都是FunctionComponent及相关类型
+    // The following are FunctionComponent and related types
     case FunctionComponent:
     case ForwardRef:
     case SimpleMemoComponent:
     case Block: {
-      // 执行useLayoutEffect的回调函数
+      // Execute the callback function of useLayoutEffect
       commitHookEffectListMount(HookLayout | HookHasEffect, finishedWork);
-      // 调度useEffect的销毁函数与回调函数
+      // Scheduling the destroy function and callback function of useEffect
       schedulePassiveEffects(finishedWork);
       return;
     }
 ```
 
-> 你可以从[这里](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L465-L491)看到这段代码
+> You can see this code from [here](https://github.com/facebook/react/blob/1fb18e22ae66fdb1dc127347e169e73948778e5a/packages/react-reconciler/src/ReactFiberCommitWork.old.js#L465-L491)
 
-在上一节介绍[Update effect](./mutation.html#update-effect)时介绍过，`mutation阶段`会执行`useLayoutEffect hook`的`销毁函数`。
+As mentioned in the previous section [Update effect](./mutation.html#update-effect), the `mutation stage` will execute the `destruction function` of the `useLayoutEffect hook`.
 
-结合这里我们可以发现，`useLayoutEffect hook`从上一次更新的`销毁函数`调用到本次更新的`回调函数`调用是同步执行的。
+Combining this, we can find that the `useLayoutEffect hook` is executed synchronously from the `destruction function` call of the last update to the `callback function` call of this update.
 
-而`useEffect`则需要先调度，在`Layout阶段`完成后再异步执行。
+And `useEffect` needs to be scheduled first, and then asynchronously executed after the completion of the `Layout phase`.
 
-这就是`useLayoutEffect`与`useEffect`的区别。
+This is the difference between `useLayoutEffect` and `useEffect`.
 
-- 对于`HostRoot`，即`rootFiber`，如果赋值了第三个参数`回调函数`，也会在此时调用。
+-For `HostRoot`, that is `rootFiber`, if the third parameter `callback function` is assigned, it will also be called at this time.
 
 ```js
 ReactDOM.render(<App />, document.querySelector("#root"), function() {
@@ -113,9 +113,9 @@ ReactDOM.render(<App />, document.querySelector("#root"), function() {
 
 ## commitAttachRef
 
-`commitLayoutEffects`会做的第二件事是`commitAttachRef`。
+The second thing `commitLayoutEffects` will do is `commitAttachRef`.
 
-> 你可以在[这里](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork.new.js#L823)看到`commitAttachRef`源码
+> You can see the source code of `commitAttachRef` in [here](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberCommitWork.new.js#L823)
 
 ```js
 function commitAttachRef(finishedWork: Fiber) {
@@ -123,7 +123,7 @@ function commitAttachRef(finishedWork: Fiber) {
   if (ref !== null) {
     const instance = finishedWork.stateNode;
 
-    // 获取DOM实例
+    // Get DOM instance
     let instanceToUse;
     switch (finishedWork.tag) {
       case HostComponent:
@@ -134,38 +134,38 @@ function commitAttachRef(finishedWork: Fiber) {
     }
 
     if (typeof ref === "function") {
-      // 如果ref是函数形式，调用回调函数
+      // If ref is in the form of a function, call the callback function
       ref(instanceToUse);
     } else {
-      // 如果ref是ref实例形式，赋值ref.current
+      // If ref is in the form of ref instance, assign ref.current
       ref.current = instanceToUse;
     }
   }
 }
 ```
 
-代码逻辑很简单：获取`DOM`实例，更新`ref`。
+The code logic is very simple: get the `DOM` instance and update the `ref`.
 
-## current Fiber树切换
+## current Fiber tree switch
 
-至此，整个`layout阶段`就结束了。
+At this point, the entire `layout phase` is over.
 
-在结束本节的学习前，我们关注下这行代码：
+Before ending the study of this section, let's focus on this line of code:
 
 ```js
 root.current = finishedWork;
 ```
 
-> 你可以在[这里](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2022)看到这行代码
+> You can see this line of code in [here](https://github.com/facebook/react/blob/970fa122d8188bafa600e9b5214833487fbf1092/packages/react-reconciler/src/ReactFiberWorkLoop.new.js#L2022)
 
-在[双缓存机制一节](../process/doubleBuffer.html#什么是-双缓存)我们介绍过，`workInProgress Fiber树`在`commit阶段`完成渲染后会变为`current Fiber树`。这行代码的作用就是切换`fiberRootNode`指向的`current Fiber树`。
+In the section of [Double Buffer Mechanism](../process/doubleBuffer.html#What is-Double Buffer), we have introduced that the `workInProgress Fiber tree` will become the `current Fiber tree` after rendering in the `commit phase`. The function of this line of code is to switch the `current Fiber tree` pointed to by `fiberRootNode`.
 
-那么这行代码为什么在这里呢？（在`mutation阶段`结束后，`layout阶段`开始前。）
+So why is this line of code here? (After the end of the `mutation phase`, before the start of the `layout phase`.)
 
-我们知道`componentWillUnmount`会在`mutation阶段`执行。此时`current Fiber树`还指向前一次更新的`Fiber树`，在生命周期钩子内获取的`DOM`还是更新前的。
+We know that `componentWillUnmount` will be executed in the `mutation phase`. At this time, the `current Fiber tree` also points to the previously updated `Fiber tree`, and the `DOM` obtained in the life cycle hook is still before the update.
 
-`componentDidMount`和`componentDidUpdate`会在`layout阶段`执行。此时`current Fiber树`已经指向更新后的`Fiber树`，在生命周期钩子内获取的`DOM`就是更新后的。
+`componentDidMount` and `componentDidUpdate` will be executed in the `layout phase`. At this time, the `current Fiber tree` has pointed to the updated `Fiber tree`, and the `DOM` obtained in the life cycle hook is the updated one.
 
-## 总结
+## Summarize
 
-从这节我们学到，`layout阶段`会遍历`effectList`，依次执行`commitLayoutEffects`。该方法的主要工作为“根据`effectTag`调用不同的处理函数处理`Fiber`并更新`ref`。
+We learned from this section that the `layout stage` will traverse the `effectList` and execute the `commitLayoutEffects` in turn. The main work of this method is "call different processing functions according to `effectTag` to process `Fiber` and update `ref`.

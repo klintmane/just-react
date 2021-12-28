@@ -1,77 +1,76 @@
-在上一节中我们了解了`React`的理念，简单概括就是**快速响应**。
+In the previous section, we learned about the concept of `React`, a simple summary is **Quick Response**.
 
-`React`从v15升级到v16后重构了整个架构。本节我们聊聊v15，看看他为什么不能满足**快速响应**的理念，以至于被重构。
+After upgrading from v15 to v16, `React` refactored the entire architecture. In this section, we will talk about v15 and see why it can't satisfy the concept of **quick response**, so that it has been refactored.
 
-## React15架构
+## React15 architecture
 
-React15架构可以分为两层：
+The React15 architecture can be divided into two layers:
 
-- Reconciler（协调器）—— 负责找出变化的组件
-- Renderer（渲染器）—— 负责将变化的组件渲染到页面上
+-Reconciler-Responsible for finding the changed components
+-Renderer (renderer)-responsible for rendering the changed components to the page
 
-### Reconciler（协调器）
+### Reconciler (Coordinator)
 
-我们知道，在`React`中可以通过`this.setState`、`this.forceUpdate`、`ReactDOM.render`等API触发更新。
+We know that in `React`, updates can be triggered through APIs such as `this.setState`, `this.forceUpdate`, and `ReactDOM.render`.
 
-每当有更新发生时，**Reconciler**会做如下工作：
+Whenever an update occurs, **Reconciler** will do the following:
 
-- 调用函数组件、或class组件的`render`方法，将返回的JSX转化为虚拟DOM
-- 将虚拟DOM和上次更新时的虚拟DOM对比
-- 通过对比找出本次更新中变化的虚拟DOM
-- 通知**Renderer**将变化的虚拟DOM渲染到页面上
+-Call the `render` method of the function component or class component to convert the returned JSX into a virtual DOM
+-Compare the virtual DOM with the virtual DOM at the last update
+-Find out the virtual DOM that has changed in this update through comparison
+-Notify **Renderer** to render the changed virtual DOM onto the page
 
-> 你可以在[这里](https://zh-hans.reactjs.org/docs/codebase-overview.html#reconcilers)看到`React`官方对**Reconciler**的解释
+> You can see the official explanation of `React` on **Reconciler** in [here](https://zh-hans.reactjs.org/docs/codebase-overview.html#reconcilers)
 
-### Renderer（渲染器）
+### Renderer
 
-由于`React`支持跨平台，所以不同平台有不同的**Renderer**。我们前端最熟悉的是负责在浏览器环境渲染的**Renderer** —— [ReactDOM](https://www.npmjs.com/package/react-dom)。
+Since `React` supports cross-platform, different platforms have different **Renderers**. Our front-end is most familiar with the **Renderer** responsible for rendering in the browser environment-[ReactDOM](https://www.npmjs.com/package/react-dom).
 
-除此之外，还有：
+Besides that:
 
-- [ReactNative](https://www.npmjs.com/package/react-native)渲染器，渲染App原生组件
-- [ReactTest](https://www.npmjs.com/package/react-test-renderer)渲染器，渲染出纯Js对象用于测试
-- [ReactArt](https://www.npmjs.com/package/react-art)渲染器，渲染到Canvas, SVG 或 VML (IE8)
+-[ReactNative](https://www.npmjs.com/package/react-native) renderer, rendering App native components
+-[ReactTest](https://www.npmjs.com/package/react-test-renderer) renderer, which renders pure Js objects for testing
+-[ReactArt](https://www.npmjs.com/package/react-art) renderer, rendering to Canvas, SVG or VML (IE8)
 
-在每次更新发生时，**Renderer**接到**Reconciler**通知，将变化的组件渲染在当前宿主环境。
+When each update occurs, **Renderer** receives **Reconciler** notification and renders the changed components in the current host environment.
 
-> 你可以在[这里](https://zh-hans.reactjs.org/docs/codebase-overview.html#renderers)看到`React`官方对**Renderer**的解释
+> You can see the official explanation of `React` on **Renderer** in [here](https://zh-hans.reactjs.org/docs/codebase-overview.html#renderers)
 
-## React15架构的缺点
+## Disadvantages of React15 architecture
 
-在**Reconciler**中，`mount`的组件会调用[mountComponent](https://github.com/facebook/react/blob/15-stable/src/renderers/dom/shared/ReactDOMComponent.js#L498)，`update`的组件会调用[updateComponent](https://github.com/facebook/react/blob/15-stable/src/renderers/dom/shared/ReactDOMComponent.js#L877)。这两个方法都会递归更新子组件。
+In **Reconciler**, the component of `mount` will call [mountComponent](https://github.com/facebook/react/blob/15-stable/src/renderers/dom/shared/ReactDOMComponent.js#L498 ), the component of `update` will call [updateComponent](https://github.com/facebook/react/blob/15-stable/src/renderers/dom/shared/ReactDOMComponent.js#L877). Both of these methods update subcomponents recursively.
 
-### 递归更新的缺点
+### Disadvantages of recursive updates
 
-由于递归执行，所以更新一旦开始，中途就无法中断。当层级很深时，递归更新时间超过了16ms，用户交互就会卡顿。
+Due to the recursive execution, once the update starts, it cannot be interrupted in the middle. When the hierarchy is deep, the recursive update time exceeds 16ms, and the user interaction will be stuck.
 
-在上一节中，我们已经提出了解决办法——用**可中断的异步更新**代替**同步的更新**。那么React15的架构支持异步更新么？让我们看一个例子：
+In the previous section, we have proposed a solution-use **interruptible asynchronous update** instead of **synchronous update**. So does React15's architecture support asynchronous updates? Let's look at an example:
 
-::: details 乘法小Demo
-[关注公众号](../me.html)，后台回复**222**获得在线Demo地址
+::: details Multiplication Demo
+[Follow the public account](../me.html), backstage reply **222** to get the online Demo address
 
-初始化时`state.count = 1`，每次点击按钮`state.count++`
+When initializing `state.count = 1`, every time you click the button `state.count++`
 
-列表中3个元素的值分别为1，2，3乘以`state.count`的结果 
+The values ​​of the 3 elements in the list are 1, 2, and 3 multiplied by the result of `state.count`
 :::
 
-我用红色标注了更新的步骤。
-<img :src="$withBase('/img/v15.png')" alt="更新流程">
+I marked the update steps in red.
+<img :src="$withBase('/img/v15.png')" alt="Update process">
 
-我们可以看到，**Reconciler**和**Renderer**是交替工作的，当第一个`li`在页面上已经变化后，第二个`li`再进入**Reconciler**。
+We can see that **Reconciler** and **Renderer** work alternately. When the first `li` has changed on the page, the second `li` enters **Reconciler** again.
 
-由于整个过程都是同步的，所以在用户看来所有DOM是同时更新的。
+Since the entire process is synchronized, all DOMs are updated at the same time from the user's perspective.
 
-接下来，让我们模拟一下，如果中途中断更新会怎么样？
+Next, let us simulate what happens if the update is interrupted in the middle?
 
-:::danger 注意
-以下是我们模拟中断的情况，实际上`React15`并不会中断进行中的更新
+:::danger Attention
+The following is our simulated interruption. In fact, `React15` will not interrupt the ongoing update
 :::
 
-<img :src="$withBase('/img/dist.png')" alt="中断更新流程">
+<img :src="$withBase('/img/dist.png')" alt="Interrupt the update process">
 
-当第一个`li`完成更新时中断更新，即步骤3完成后中断更新，此时后面的步骤都还未执行。
+The update is interrupted when the first `li` completes the update, that is, the update is interrupted after the completion of step 3, and the subsequent steps have not been executed yet.
 
-用户本来期望`123`变为`246`。实际却看见更新不完全的DOM！（即`223`）
+The user originally expected `123` to become `246`. In fact, I saw an incompletely updated DOM! (Ie `223`)
 
-基于这个原因，`React`决定重写整个架构。
-
+For this reason, `React` decided to rewrite the entire architecture.

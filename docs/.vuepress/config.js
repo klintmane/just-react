@@ -1,6 +1,6 @@
 module.exports = {
-	"title": "React技术揭秘",
-	"description": "React源码解析",
+	"title": "Secrets of React technology",
+	"description": "React source code analysis",
 	"dest": "dist",
 	"serviceWorker": false,
 	"head": [
@@ -14,96 +14,96 @@ module.exports = {
 	"markdown": {},
 	"themeConfig": {
 		"repo": "BetaSu/just-react",
-		"repoLabel": "点亮⭐不迷路",
+		"repoLabel": "Light up⭐ Don't get lost",
 		"editLinks": true,
 		"docsDir": "docs",
-		"editLinkText": "为该章节纠错",
-		"lastUpdated": "上次更新",
+		"editLinkText": "Correction for this chapter",
+		"lastUpdated": "Last update",
 		"nav": [
 			{
-				"text": "🙋‍♂️ 一起成长",
+				"text": "🙋‍♂️ grow together",
 				"link": "/me"
 			},
 			{
-				"text": "🔥 视频课程",
+				"text": "🔥 Video course",
 				"link": "https://ke.segmentfault.com/course/1650000023864436"
 			},
 			{
-				"text": "Vue技术揭秘",
+				"text": "Vue technology revealed",
 				"link": "https://ustbhuangyi.github.io/vue-analysis/"
 			},
 		],
 		"sidebar": [
 			[
 				"/",
-				"前言"
+				"Preface"
 			],
 			{
-				"title": "理念篇",
+				"title": "Ideas",
 				"collapsable": true,
 				"children": [
 					{
-						"title": "第一章 React理念",
+						"title": "Chapter 1 React Concept",
 						"children": [
 							[
 								"/preparation/idea",
-								"React理念"
+								"React philosophy"
 							],
 							[
 								"/preparation/oldConstructure",
-								"老的React架构"
+								"Old React architecture"
 							],
 							[
 								"/preparation/newConstructure",
-								"新的React架构"
+								"New React architecture"
 							],
 							[
 								"/process/fiber-mental",
-								"Fiber架构的心智模型"
+								"The mental model of Fiber architecture"
 							],
 							[
 								"/process/fiber",
-								"Fiber架构的实现原理"
+								"The realization principle of Fiber architecture"
 							],
 							[
 								"/process/doubleBuffer",
-								"Fiber架构的工作原理"
+								"How the Fiber architecture works"
 							],
 							[
 								"/preparation/summary",
-								"总结"
+								"Summarize"
 							]
 						]
 					},
 					{
-						"title": "第二章 前置知识",
+						"title": "Chapter 2 Pre-Knowledge",
 						"children": [
 							[
 								"/preparation/file",
-								"源码的文件结构"
+								"The file structure of the source code"
 							],
 							[
 								"/preparation/source",
-								"调试源码"
+								"Debug source code"
 							],
 							[
 								"/preparation/jsx",
-								"深入理解JSX"
+								"Deep understanding of JSX"
 							]
 						]
 					}
 				]
 			},
 			{
-				"title": "架构篇",
+				"title": "Architecture",
 				"collapsable": true,
 				"children": [
 					{
-						"title": "第三章 render阶段",
+						"title": "Chapter 3 Render Phase",
 						"children": [
 							[
 								"/process/reconciler",
-								"流程概览"
+								"Process overview"
 							],
 							[
 								"/process/beginWork",
@@ -116,59 +116,59 @@ module.exports = {
 						]
 					},
 					{
-						"title": "第四章 commit阶段",
+						"title": "Chapter 4 commit stage",
 						"children": [
 							[
 								"/renderer/prepare",
-								"流程概览"
+								"Process overview"
 							],
 							[
 								"/renderer/beforeMutation",
-								"before mutation阶段"
+								"before mutation stage"
 							],
 							[
 								"/renderer/mutation",
-								"mutation阶段"
+								"mutation stage"
 							],
 							[
 								"/renderer/layout",
-								"layout阶段"
+								"layout stage"
 							]
 						]
 					}
 				]
 			},
 			{
-				"title": "实现篇",
+				"title": "Implementation",
 				"collapsable": true,
 				"children": [
 					{
-						"title": "第五章 Diff算法",
+						"title": "Chapter 5 Diff Algorithm",
 						"children": [
 							[
 								"/diff/prepare",
-								"概览"
+								"Overview"
 							],
 							[
 								"/diff/one",
-								"单节点Diff"
+								"Single node Diff"
 							],
 							[
 								"/diff/multi",
-								"多节点Diff"
+								"Multi-node Diff"
 							]
 						]
 					},
 					{
-						"title": "第六章 状态更新",
+						"title": "Chapter 6 Status Update",
 						"children": [
 							[
 								"/state/prepare",
-								"流程概览"
+								"Process overview"
 							],
 							[
 								"/state/mental",
-								"心智模型"
+								"Mental model"
 							],
 							[
 								"/state/update",
@@ -176,7 +176,7 @@ module.exports = {
 							],
 							[
 								"/state/priority",
-								"深入理解优先级"
+								"In-depth understanding of priorities"
 							],
 							[
 								"/state/reactdom",
@@ -189,23 +189,23 @@ module.exports = {
 						]
 					},
 					{
-						"title": "第七章 Hooks",
+						"title": "Chapter 7 Hooks",
 						"children": [
 							[
 								"/hooks/prepare",
-								"Hooks理念"
+								"Hooks concept"
 							],
 							[
 								"/hooks/create",
-								"极简Hooks实现"
+								"Minimal Hooks implementation"
 							],
 							[
 								"/hooks/structure",
-								"Hooks数据结构"
+								"Hooks data structure"
 							],
 							[
 								"/hooks/usestate",
-								"useState与useReducer"
+								"useState & useReducer"
 							],
 							[
 								"/hooks/useeffect",
@@ -217,28 +217,28 @@ module.exports = {
 							],
 							[
 								"/hooks/usememo",
-								"useMemo与useCallback"
+								"useMemo & useCallback"
 							],
 						]
 					},
 					{
-						"title": "第八章 Concurrent Mode",
+						"title": "Chapter 8 Concurrent Mode",
 						"children": [
 							[
 								"/concurrent/prepare",
-								"概览"
+								"Overview"
 							],
 							[
 								"/concurrent/scheduler",
-								"Scheduler的原理与实现"
+								"Principle and implementation of Scheduler"
 							],
 							[
 								"/concurrent/lane",
-								"lane模型"
+								"lane model"
 							],
 							[
 								"/concurrent/disrupt",
-								"异步可中断更新"
+								"Asynchronous interruptible update"
 							]
 						]
 					}
